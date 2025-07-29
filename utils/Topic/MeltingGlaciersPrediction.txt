@@ -1,0 +1,83 @@
+Predict the lines of glaciers in satellitar images and use the lines detected to compare the melting evolution through years.
+
+1) Through Segmentation and Deep Learning, relying on solid neural networks like probabilistic or bayesian U-Net on SAT images or DeepLab and Mask R-CNN. 
+This could help also to get an estimation on the uncertainty of predictions.
+
+2) Temporal analysis (Monthly and Yearly or just Yearly)
+
+3) Dataset could be taken from Copernicus (Sentinel-1 or Sentinel-2)
+
+4) An idea is to combine CNN and Transformer model to improve generalization and precision (see "Towards Global Glacier Mapping with Deep Learning and Open Earth Observation Data" study) 
+
+5) Pre and Post elaboration of images to deal with different quality of images.
+
+6) Integrate with auxiliary data like topographical, climate and in-site measurement to give a correlation to the glacier's changings.
+
+Sources:
+
+Models and architectures ->
+
+A) GlacierNet,
+
+B) GlaViTU
+
+Studies ->   
+
+A) Bayesian U-Net for Segmenting Glaciers in SAR Imagery (Hartmann et al., 2021)
+
+B) Towards Global Glacier Mapping with Deep Learning and Open Earth Observation Data (Maslov et al., 2024)
+
+C) GLIMS (Global Land Ice Measurements from Space)
+
+D) Glacier-VisionTransformer-U-Net (GlaViTU)
+
+E) World Glacier Monitoring Service
+
+F) https://github.com/satellite-image-deep-learning/techniques
+
+G) https://github.com/Christobaltobbin/Glacier-Regression-Detection-Deep-Learning
+
+H) Globally scalable glacier mapping by deep learning (Nature, 2024)
+
+I) Machine learning–based approach to predict ice meltdown in glaciers (Springer, 2023)
+
+
+Dataset and Portals ->
+
+A) Copernicus Open Access Hub
+
+B) Randolph Glacier Inventory (RGI)
+
+C) ESA (European Space Agency) Sentinel-2
+
+D) NASA (National Aeronautics and Space Administration) Landsat-8/9
+
+E) AWS Open Data Registry
+
+F) GlaViTU Benchmark Dataset
+
+G) Chandra-Bhaga Basin Dataset
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

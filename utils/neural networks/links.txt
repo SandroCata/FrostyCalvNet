@@ -1,0 +1,11 @@
+AMD-Hooknet (CAFFE dataset): 
+
+https://github.com/RiverNA/AMD-HookNet
+
+Bayesian U-Net:
+
+https://github.com/tha-santacruz/BayesianUNet
+
+nnUNet:
+
+https://github.com/MIC-DKFZ/nnUNet
