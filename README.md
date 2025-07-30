@@ -10,6 +10,7 @@ The objective of this thesis is to design, implement, and evaluate deep neural n
 
 By leveraging solid segmentation models (such as AMD-HookNet, Bayesian U-Net, and other convolutional and transformer-based networks) this project aims to provide both precise front delineation and an estimation of glacier evolution patterns over time. The ultimate goal is to produce a system that not only offers retrospective insights on glacier behavior, but that may also serve as a foundation for future applications in climate change monitoring, glaciology, and environmental risk assessment.
 
+
 ---
 
 ## 📂 Project Structure
@@ -17,13 +18,13 @@ By leveraging solid segmentation models (such as AMD-HookNet, Bayesian U-Net, an
 ```bash
 FrostyCalvNet/
 │
-├── data/                  # Dataset (CAFFEE + optional)
+├── data/                  # CAFFEE Dataset download link
 ├── preprocessing/         # Scripts to prepare data patches
 ├── models/                # AMD-HookNet and possible variants
 ├── notebooks/             # Jupyter experiments and visualizations
 ├── results/               # Outputs, logs, metrics, plots
 ├── configs/               # YAML/JSON config files for training
-├── utils/                 # Helpers and custom modules
+├── utils/                 # References and Documentation
 ├── main.py                # Entry point for training/inference
 └── README.md
 ```

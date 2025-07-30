@@ -1,0 +1,19 @@
+name: glacier-pytorch
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.8
+  - pip
+  - pip:
+    - matplotlib
+    - scikit-learn
+    - tqdm
+    - tensorboard
+    - ipykernel
+    - numpy

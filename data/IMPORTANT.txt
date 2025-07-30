@@ -1,0 +1,2 @@
+This directory will be used to locate and exploit data from downloaded dataset for training and pre-processing.
+So don't forget to place CAFFEE here.
