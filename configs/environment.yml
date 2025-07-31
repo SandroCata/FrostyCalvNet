@@ -17,3 +17,5 @@ dependencies:
     - tensorboard
     - ipykernel
     - numpy
+
+#Execute in conda terminal to create and setup environment: conda env create -f environment.yml 
