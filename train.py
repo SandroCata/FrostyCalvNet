@@ -1,3 +1,5 @@
+# IMPORT SECTION:
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -8,7 +10,7 @@ import random
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-from config import cfg
+
 import logging
 import sys
 import cv2
@@ -16,19 +18,46 @@ import numpy as np
 from torch import optim
 from PIL import Image
 from tqdm import tqdm
+
+#Config module loaded with yacs
+from config import cfg
+
+#compute metrics on validation                            
 from eval_whole import eval_net
+
+#model architecture
 from AMD_HookNet_model import AMD_HookNet
-from torch.utils.tensorboard import SummaryWriter
+
+#load patch images + masks 
 from dataset import BasicDataset
 from valid_dataset import BasDataset
-from torch.utils.data import DataLoader
+
+#Custom loss along with Crossentropy Loss
 from loss import DiceLoss, make_one_hot
+
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import DataLoader
+
+
+#-----------------------------------------------------------------------
+
+# DATA PATHS:
 
 dir_checkpoint = cfg.output_path
 
-scratch_train = os.path.join(os.environ['TMPDIR'], 'Training')
-scratch_valid = os.path.join(os.environ['TMPDIR'], 'Validation')
 
+
+base_data_path = '/data/CAFFE'
+scratch_train = os.path.join(base_data_path, 'Training')
+scratch_valid = os.path.join(base_data_path, 'Validation')
+
+#ORIGINAL PART:
+
+#load data from temporary directories (environment variable "TMPDIR")
+#scratch_train = os.path.join(os.environ['TMPDIR'], 'Training')
+#scratch_valid = os.path.join(os.environ['TMPDIR'], 'Validation')
+
+#Define the path to the target (centered) and context (wide) images, for both images and masks in training and validation.
 dir_img_target = os.path.join(scratch_train, 'target_images')
 dir_img_context = os.path.join(scratch_train, 'context_images')
 dir_mask_target = os.path.join(scratch_train, 'target_masks')
@@ -39,7 +68,11 @@ valid_img_context = os.path.join(scratch_valid, 'context_images')
 valid_mask_target = os.path.join(scratch_valid, 'target_masks')
 valid_mask_context = os.path.join(scratch_valid, 'context_masks')
 
+#-----------------------------------------------------------------------
 
+# GLOBAL SEED FUNCTION:
+
+#Set seed for reproducibility (random, numpy, torch). Also set cudnn.benchmark=True (dynamic GPU optimization).
 def seed_torch(seed=0):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -49,7 +82,11 @@ def seed_torch(seed=0):
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.deterministic = False
 
+#-----------------------------------------------------------------------
 
+# TRAINING FUNCTION:
+
+#
 def train_net(net,
               device,
               optimizer,
@@ -61,6 +98,8 @@ def train_net(net,
               save_cp=True,
               img_scale=1,
               ):
+    
+    #Create dataloader with extracted patches (using BasicDataset and BasDataset). Batch_size is configurable, num_workers=16 → multi-threaded. In the test, the batch size is 1 for single patch evaluation.
     dataset = BasicDataset(dir_img_target, dir_img_context, dir_mask_target, dir_mask_context, img_scale)
     valid_dataset = BasDataset(valid_img_target, valid_img_context, valid_mask_target, valid_mask_context, cfg.scale)
 
@@ -76,14 +115,18 @@ def train_net(net,
         Device:                {device.type}
     ''')
     
+    #Use CE + Dice combination for both target and context → more stability and accuracy on edges.
     criterion1 = nn.CrossEntropyLoss()
     criterion2 = DiceLoss()
 
+    #Training loop
     for epoch in range(eepoch, epochs):
         net.train()
         epoch_loss = 0
         with tqdm(total=n_dataset, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
             for batch in train_loader:
+
+                #Extract target patches and context (images and masks).
                 imgs_target = batch['image_target']
                 imgs_context = batch['image_context']
                 true_masks_target = batch['mask_target']
@@ -93,6 +136,7 @@ def train_net(net,
                     f'but loaded images have {imgs_target.shape[1]} channels. Please check that ' \
                     'the images are loaded correctly.'
                 
+                #Generate 4 downsampled versions of the target masks to supervise the intermediate outputs of the network.
                 masks = [true_masks_target]
                 
                 for i in range(4):
@@ -108,6 +152,8 @@ def train_net(net,
                 mask_type = torch.float32 if net.n_classes <= 2 else torch.int64
                 true_masks_target = true_masks_target.to(device=device, dtype=mask_type)
                 true_masks_context = true_masks_context.to(device=device, dtype=mask_type)
+
+                #Pass both patches (context and target) to the AMD-HookNet network.
                 masks_pred = net(imgs_context, imgs_target)
 
                 true_masks_context_dice = torch.unsqueeze(true_masks_context, dim=1)
@@ -121,6 +167,14 @@ def train_net(net,
                 c_loss2 = criterion2(masks_pred[0], true_masks_context_dice)
                 t_loss2 = criterion2(masks_pred[1], true_masks_target_dice)
 
+                #Three contributions:
+
+                # - Loss on the context branch
+
+                # - Loss on the target branch
+
+                # - Deep supervision loss for intermediate features
+
                 c_loss = c_loss1 + c_loss2
                 t_loss = t_loss1 + t_loss2
 
@@ -133,22 +187,28 @@ def train_net(net,
                     lossd = criterion2(masks_pred[2][2 - i], dice)
                     loss_deep += lossc + lossd
 
+                #Combined
                 loss = t_loss + c_loss + 0.5 * loss_deep
 
                 epoch_loss += loss.item() / imgs_context.shape[0]
 
                 pbar.set_postfix({'loss': loss.item() / imgs_context.shape[0]})
+
+                #Classic backward cycle
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+
                 pbar.update(imgs_context.shape[0])
 
         print('Train average loss:', epoch_loss / n_dataset)
         print('lr:', optimizer.param_groups[0]['lr'])
 
+        #Evaluate model at each epoch (print metrics)
         success_ratio, vaild_iou_ratio, iou = eval_net(net, valid_loader, device)
         print('Validation iou ratio: {}, {}'.format(vaild_iou_ratio, iou))
 
+        #Save model, optimizer, learning rate scheduler, current epoch.
         if save_cp:
             try:
                 os.mkdir(dir_checkpoint)
@@ -165,9 +225,12 @@ def train_net(net,
             print('Checkpoint {:03d} saved!\n'.format(os.path.join(dir_checkpoint, 'AMD_HookNet_epoch{:03d}.pth'.format(epoch + 1))))
             
         if epoch < epochs - 1:
+
+            #Learning rate scheduler (gamma decreases at each epoch)
             scheduler.step()
 
 
+#main section
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
