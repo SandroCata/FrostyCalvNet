@@ -9,7 +9,6 @@
 # - generates "center-aligned" images and masks ready to be subsequently cut into patches by 'Sliding_window_generate_dataset.py' (PREPROCESSING STEP 2)
 
 from pathlib import Path
-import shutil
 from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image
@@ -27,6 +26,25 @@ mav = base_dir / "zones" / "valid"
 imt = base_dir / "sar_images" / "test"
 mat = base_dir / "zones" / "test"
 
+save_train_sar = base_dir / "sar_images" / "center_crop"
+save_train_zones = base_dir / "zones" / "center_crop"
+
+save_valid_sar = base_dir / "sar_images" / "center_crop_val"
+save_valid_zones = base_dir / "zones" / "center_crop_val"
+
+save_test_sar = base_dir / "sar_images" / "center_crop_test"
+save_test_zones = base_dir / "zones" / "center_crop_test"
+
+for path in [
+    save_train_sar,
+    save_train_zones,
+    save_valid_sar,
+    save_valid_zones,
+    save_test_sar,
+    save_test_zones,
+]:
+    os.makedirs(path, exist_ok=True)
+
 ims = sorted(glob.glob(os.path.join(im, '*.png')))
 mas = sorted(glob.glob(os.path.join(ma, '*.png')))
 
@@ -41,9 +59,9 @@ context_size = target_size * 2
 
 print("Cropping of Training sar_images...")
 
-for i in range(len(ims)):
-    img = Image.open(ims[i])
-    suffix = ims[i].split('/')[-1]
+for img_path in ims:
+    img = Image.open(img_path)
+    suffix = Path(img_path).name
     W, H = img.size
 
     WW = (W // target_size) + 2
@@ -62,15 +80,16 @@ for i in range(len(ims)):
     pil_img = transforms.ToTensor()(pil_img)
 
     #save and move in dest folder
-    save_image(pil_img, ims[i])
+    save_image(pil_img, save_train_sar / suffix)
 
 print("Complete!!")
 
 print("Cropping of Training zones...")
 
-for i in range(len(mas)):
-    img = Image.open(mas[i])
-    suffix = mas[i].split('/')[-1]
+for mask_path in mas:
+    img = Image.open(mask_path)
+    suffix = Path(mask_path).name
+
     W, H = img.size
 
     WW = (W // target_size) + 2
@@ -88,15 +107,17 @@ for i in range(len(mas)):
 
     pil_img = transforms.ToTensor()(pil_img)
     
-    save_image(pil_img, mas[i])
+    save_image(pil_img, save_train_zones / suffix)
 
 print("Complete!!")
+
 
 print("Cropping of Validation sar_images...")
 
-for i in range(len(imsv)):
-    img = Image.open(imsv[i])
-    suffix = imsv[i].split('/')[-1]
+for img_path in imsv:
+    img = Image.open(img_path)
+    suffix = Path(img_path).name
+
     W, H = img.size
 
     WW = (W // target_size) + 2
@@ -114,15 +135,17 @@ for i in range(len(imsv)):
 
     pil_img = transforms.ToTensor()(pil_img)
     
-    save_image(pil_img, imsv[i])
+    save_image(pil_img, save_valid_sar / suffix)
 
 print("Complete!!")
+
 
 print("Cropping of Validation zones...")
 
-for i in range(len(masv)):
-    img = Image.open(masv[i])
-    suffix = masv[i].split('/')[-1]
+for mask_path in masv:
+    img = Image.open(mask_path)
+    suffix = Path(mask_path).name
+
     W, H = img.size
 
     WW = (W // target_size) + 2
@@ -140,15 +163,17 @@ for i in range(len(masv)):
 
     pil_img = transforms.ToTensor()(pil_img)
     
-    save_image(pil_img, masv[i])
+    save_image(pil_img, save_valid_zones / suffix)
 
 print("Complete!!")
 
+
 print("Cropping of Testing sar_images...")
 
-for i in range(len(imst)):
-    img = Image.open(imst[i])
-    suffix = imst[i].split('/')[-1]
+for img_path in imst:
+    img = Image.open(img_path)
+    suffix = Path(img_path).name
+
     W, H = img.size
 
     WW = (W // target_size) + 2
@@ -166,15 +191,17 @@ for i in range(len(imst)):
 
     pil_img = transforms.ToTensor()(pil_img)
 
-    save_image(pil_img, imst[i])
+    save_image(pil_img, save_test_sar / suffix)
 
 print("Complete!!")
 
 print("Cropping of Testing zones...")
 
-for i in range(len(mast)):
-    img = Image.open(mast[i])
-    suffix = mast[i].split('/')[-1]
+
+for mask_path in mast:
+    img = Image.open(mask_path)
+    suffix = Path(mask_path).name
+
     W, H = img.size
 
     WW = (W // target_size) + 2
@@ -192,7 +219,7 @@ for i in range(len(mast)):
 
     pil_img = transforms.ToTensor()(pil_img)
 
-    save_image(pil_img, mast[i])
+    save_image(pil_img, save_test_zones / suffix)
 
 print("Complete!!")
 

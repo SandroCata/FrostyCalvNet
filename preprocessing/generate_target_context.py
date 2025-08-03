@@ -1,4 +1,5 @@
 import glob
+from pathlib import Path
 import os
 import PIL
 import numpy as np3
@@ -7,16 +8,19 @@ from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image
 
-ti = './Sliding_window/Train/Transform_images'
-mi = './Sliding_window/Train/Transform_masks'
+base_dir = Path(__file__).resolve().parents[2] / "CAFFE"
+
+ti = base_dir / "sar_images" / "sliding_window"
+mi = base_dir / "zones" / "sliding_window"
 
 images = sorted(glob.glob(os.path.join(ti, '*.png')))
 masks = sorted(glob.glob(os.path.join(mi, '*.png')))
 
-save_path_target = './Sliding_window/Train/Training/target_images'
-save_path_context = './Sliding_window/Train/Training/context_images'
-save_path_target_mask = './Sliding_window/Train/Training/target_masks'
-save_path_context_mask = './Sliding_window/Train/Training/context_masks'
+save_path_target = base_dir / "sar_images" / "target_imgs"
+save_path_context = base_dir / "sar_images" / "context_imgs"
+
+save_path_target_mask = base_dir / "zones" / "target_imgs"
+save_path_context_mask = base_dir / "zones" / "context_imgs"
 
 size = 288
 
@@ -46,34 +50,43 @@ if not os.path.exists(save_path_target_mask):
 if not os.path.exists(save_path_context_mask):
     os.makedirs(save_path_context_mask)
 
+print("Generating target and context Training sar_images...")
+
 for i in range(len(images)):
     image = Image.open(images[i])
-    suffix = images[i].split('/')[-1].split('.')[0]
+    suffix = os.path.splitext(os.path.basename(images[i]))[0]
 
     target_image = target(image)
     context_image = context_images(image)
     save_image(target_image, os.path.join(save_path_target, suffix + '.png'))
     save_image(context_image, os.path.join(save_path_context, suffix + '.png'))
 
+print("Complete!!")
+
+print("Generating target and context Training zones...")
+
+
 for i in range(len(masks)):
     mask = Image.open(masks[i])
-    suffix = masks[i].split('/')[-1].split('.')[0]
+    suffix = os.path.splitext(os.path.basename(images[i]))[0]
 
     target_mask = target(mask)
     context_mask = context_masks(mask)
     save_image(target_mask, os.path.join(save_path_target_mask, suffix + '.png'))
     save_image(context_mask, os.path.join(save_path_context_mask, suffix + '.png'))
+    
 
-ti = './Sliding_window/Valid/Transform_images'
-mi = './Sliding_window/Valid/Transform_masks'
+ti = base_dir / "sar_images" / "sliding_window_valid"
+mi = base_dir / "zones" / "sliding_window_valid"
 
 images = sorted(glob.glob(os.path.join(ti, '*.png')))
 masks = sorted(glob.glob(os.path.join(mi, '*.png')))
 
-save_path_target = './Sliding_window/Valid/Validation/target_images'
-save_path_context = './Sliding_window/Valid/Validation/context_images'
-save_path_target_mask = './Sliding_window/Valid/Validation/target_masks'
-save_path_context_mask = './Sliding_window/Valid/Validation/context_masks'
+save_path_target = base_dir / "sar_images" / "target_imgs_valid"
+save_path_context = base_dir / "sar_images" / "context_imgs_valid"
+
+save_path_target_mask = base_dir / "zones" / "target_imgs_valid"
+save_path_context_mask = base_dir / "zones" / "context_imgs_valid"
 
 target = transforms.Compose([
     transforms.CenterCrop((size, size)),
@@ -101,34 +114,43 @@ if not os.path.exists(save_path_target_mask):
 if not os.path.exists(save_path_context_mask):
     os.makedirs(save_path_context_mask)
 
+print("Complete!!")
+
+print("Generating target and context Validating sar_images...")
+
 for i in range(len(images)):
     image = Image.open(images[i])
-    suffix = images[i].split('/')[-1].split('.')[0]
+    suffix = os.path.splitext(os.path.basename(images[i]))[0]
 
     target_image = target(image)
     context_image = context_images(image)
     save_image(target_image, os.path.join(save_path_target, suffix + '.png'))
     save_image(context_image, os.path.join(save_path_context, suffix + '.png'))
 
+print("Complete!!")
+
+print("Generating target and context Validating zones...")
+
 for i in range(len(masks)):
     mask = Image.open(masks[i])
-    suffix = masks[i].split('/')[-1].split('.')[0]
+    suffix = os.path.splitext(os.path.basename(images[i]))[0]
 
     target_mask = target(mask)
     context_mask = context_masks(mask)
     save_image(target_mask, os.path.join(save_path_target_mask, suffix + '.png'))
     save_image(context_mask, os.path.join(save_path_context_mask, suffix + '.png'))
 
-ti = './Sliding_window/Test/Transform_images'
-mi = './Sliding_window/Test/Transform_masks'
+ti = base_dir / "sar_images" / "sliding_window_test"
+mi = base_dir / "zones" / "sliding_window_test"
 
 images = sorted(glob.glob(os.path.join(ti, '*.png')))
 masks = sorted(glob.glob(os.path.join(mi, '*.png')))
 
-save_path_target = './Sliding_window/Test/Testing/target_images'
-save_path_context = './Sliding_window/Test/Testing/context_images'
-save_path_target_mask = './Sliding_window/Test/Testing/target_masks'
-save_path_context_mask = './Sliding_window/Test/Testing/context_masks'
+save_path_target = base_dir / "sar_images" / "target_imgs_test"
+save_path_context = base_dir / "sar_images" / "context_imgs_test"
+
+save_path_target_mask = base_dir / "zones" / "target_imgs_test"
+save_path_context_mask = base_dir / "zones" / "context_imgs_test"
 
 target = transforms.Compose([
     transforms.CenterCrop((size, size)),
@@ -156,18 +178,26 @@ if not os.path.exists(save_path_target_mask):
 if not os.path.exists(save_path_context_mask):
     os.makedirs(save_path_context_mask)
 
+print("Complete!!")
+
+print("Generating target and context Testing sar_images...")
+
 for i in range(len(images)):
     image = Image.open(images[i])
-    suffix = images[i].split('/')[-1].split('.')[0]
+    suffix = os.path.splitext(os.path.basename(images[i]))[0]
 
     target_image = target(image)
     context_image = context_images(image)
     save_image(target_image, os.path.join(save_path_target, suffix + '.png'))
     save_image(context_image, os.path.join(save_path_context, suffix + '.png'))
 
+print("Complete!!")
+
+print("Generating target and context Testing zones...")
+
 for i in range(len(masks)):
     mask = Image.open(masks[i])
-    suffix = masks[i].split('/')[-1].split('.')[0]
+    suffix = os.path.splitext(os.path.basename(images[i]))[0]
 
     target_mask = target(mask)
     context_mask = context_masks(mask)
