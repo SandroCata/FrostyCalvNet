@@ -10,13 +10,14 @@ from pathlib import Path
 base_dir = Path(__file__).resolve().parents[2] / "CAFFE"
 
 sar_dir = base_dir / "sar_images" / "train"
-front_dir = base_dir / "fronts" / "train"
 zone_dir = base_dir / "zones" / "train"
+front_dir = base_dir / "fronts" / "train"
+
 
 # Percorsi per la validazione
 sar_valid_dir = base_dir / "sar_images" / "valid"
-front_valid_dir = base_dir / "fronts" / "valid"
 zone_valid_dir = base_dir / "zones" / "valid"
+front_valid_dir = base_dir / "fronts" / "valid"
 
 
 
