@@ -87,6 +87,7 @@ def eval_net(net, loader, device):
     mask_type = torch.float32 if net.n_classes <= 2 else torch.int64
     n_val = len(loader)
     iou_ratio = 0
+    success_ratio = 0
     test_save = os.path.join(os.environ['TMPDIR'], 'patch_save')
     if not os.path.exists(test_save):
         os.makedirs(test_save)
