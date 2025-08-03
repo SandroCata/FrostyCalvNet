@@ -1,35 +1,34 @@
 # SPLITTING TRAINING - VALIDATION IN 80/20
 
-#Problema a linea 32 (sar_images non contiene nulla)
-
-import os
-import glob
 import shutil
 import random
+from pathlib import Path
 
 # Percorsi di input
-base_dir = "..\..\CAFFE"
+# Utilizza pathlib per gestire in modo portabile i percorsi invece di usare
+# le backslash. La versione precedente creava un unico componente con i
+# caratteri "..\\..\\CAFFE" che portava `glob.glob` a non trovare alcuna
+# immagine. Calcoliamo quindi la cartella base rispetto a questo file.
+base_dir = Path(__file__).resolve().parents[2] / "CAFFE"
 
-sar_dir = os.path.join(base_dir, "sar_images", "train")
-front_dir = os.path.join(base_dir, "fronts", "train")
-zone_dir = os.path.join(base_dir, "zones", "train")
+sar_dir = base_dir / "sar_images" / "train"
+front_dir = base_dir / "fronts" / "train"
+zone_dir = base_dir / "zones" / "train"
 
 # Percorsi per la validazione
-sar_valid_dir = os.path.join(base_dir, "sar_images", "valid")
-front_valid_dir = os.path.join(base_dir, "fronts", "valid")
-zone_valid_dir = os.path.join(base_dir, "zones", "valid")
-
-print(sar_dir)
+sar_valid_dir = base_dir / "sar_images" / "valid"
+front_valid_dir = base_dir / "fronts" / "valid"
+zone_valid_dir = base_dir / "zones" / "valid"
 
 
 
 # Crea cartelle valid se non esistono
-os.makedirs(sar_valid_dir, exist_ok=True)
-os.makedirs(front_valid_dir, exist_ok=True)
-os.makedirs(zone_valid_dir, exist_ok=True)
+sar_valid_dir.mkdir(parents=True, exist_ok=True)
+front_valid_dir.mkdir(parents=True, exist_ok=True)
+zone_valid_dir.mkdir(parents=True, exist_ok=True)
 
 # Recupera immagini SAR
-sar_images = sorted(glob.glob(os.path.join(sar_dir, '*.png')))
+sar_images = sorted(sar_dir.glob("*.png"))
 
 #print(len(sar_images))
 
@@ -43,15 +42,27 @@ valid_images = random.sample(sar_images, n_valid)
 #print(len(valid_images))
 
 for sar_path in valid_images:
-    filename = os.path.basename(sar_path)
+    filename = sar_path.name
+    stem = sar_path.stem
 
-    # Percorsi associati
-    front_path = os.path.join(front_dir, filename)
-    zone_path = os.path.join(zone_dir, filename)
+    # Percorsi associati: nelle cartelle `fronts` e `zones`
+    # i file hanno rispettivamente i suffissi `_front` e `_zones`
+    front_path = front_dir / f"{stem}_front{sar_path.suffix}"
+    zone_path = zone_dir / f"{stem}_zones{sar_path.suffix}"
+
+    # Skip se mancano i file associati
+    if not front_path.exists() or not zone_path.exists():
+        missing = []
+        if not front_path.exists():
+            missing.append("front")
+        if not zone_path.exists():
+            missing.append("zone")
+        print(f"⚠ Immagini mancanti ({', '.join(missing)}) per {filename}, salto.")
+        continue
 
     # Nuove destinazioni
-    shutil.move(sar_path, os.path.join(sar_valid_dir, filename))
-    shutil.move(front_path, os.path.join(front_valid_dir, filename))
-    shutil.move(zone_path, os.path.join(zone_valid_dir, filename))
+    shutil.move(sar_path, sar_valid_dir / filename)
+    shutil.move(front_path, front_valid_dir / front_path.name)
+    shutil.move(zone_path, zone_valid_dir / zone_path.name)
 
 print(f"✔ Split completato: {n_valid} immagini spostate in 'valid/'.")
