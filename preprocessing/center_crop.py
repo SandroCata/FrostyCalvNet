@@ -1,26 +1,36 @@
+# PREPROCESSING STEP 1:
+
+#This script:
+
+# - pads the images and masks so that their dimensions are a multiple of target_size (=288)
+
+# - does not crop, but centralizes and uniformizes the size
+
+# - generates "center-aligned" images and masks ready to be subsequently cut into patches by 'Sliding_window_generate_dataset.py' (PREPROCESSING STEP 2)
+
 from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image
 import glob
 import os
 
-im = './data_raw/sar_images/train'
-ma = './data_raw/zones/train'
+im = '../CAFFE/sar_images/train'
+ma = '../CAFFE/zones/train'
 
-imv = './data_raw/sar_images/valid'
-mav = './data_raw/zones/valid'
+imv = '../CAFFE/sar_images/valid'
+mav = '../CAFFE/zones/valid'
 
-imt = './data_raw/sar_images/test'
-mat = './data_raw/zones/test'
+imt = '../CAFFE/sar_images/test'
+mat = '../CAFFE/zones/test'
 
-images = './data_raw/sar_images/center_crop'
-masks = './data_raw/zones/center_crop'
+images = '../CAFFE/sar_images/center_crop'
+masks = '../CAFFE/zones/center_crop'
 
-imagesv = './data_raw/sar_images/center_crop_valid'
-masksv = './data_raw/zones/center_crop_valid'
+imagesv = '../CAFFE/sar_images/center_crop_valid'
+masksv = '../CAFFE/zones/center_crop_valid'
 
-imagest = './data_raw/sar_images/center_crop_test'
-maskst = './data_raw/zones/center_crop_test'
+imagest = '../CAFFE/sar_images/center_crop_test'
+maskst = '../CAFFE/zones/center_crop_test'
 
 if not os.path.exists(images):
     os.makedirs(images)
