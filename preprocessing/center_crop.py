@@ -15,6 +15,8 @@ from torchvision.utils import save_image
 import glob
 import os
 
+print("Starting Center crop process...")
+
 start = time.time()
 
 base_dir = Path(__file__).resolve().parents[2] / "CAFFE"

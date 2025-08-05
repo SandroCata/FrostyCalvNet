@@ -1,3 +1,5 @@
+# PREPROCESSING STEP 2:
+
 import glob
 from pathlib import Path
 import os
@@ -9,6 +11,8 @@ import time
 from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image
+
+print("Starting Sliding Window process...")
 
 start = time.time()
 
@@ -87,7 +91,7 @@ print("Sliding Training fronts...")
 
 for i in range(len(masksf)):
     image = Image.open(masksf[i])
-    suffix = os.path.splitext(os.path.basename(masksf[i]))[0]
+    suffix = os.path.splitext(os.path.basename(images[i]))[0]
 
     toimage = totensor(image)
     _, h, w = toimage.shape
@@ -159,7 +163,7 @@ print("Sliding Validating fronts...")
 
 for i in range(len(masksfv)):
     image = Image.open(masksfv[i])
-    suffix = os.path.splitext(os.path.basename(masksfv[i]))[0]
+    suffix = os.path.splitext(os.path.basename(images[i]))[0]
     toimage = totensor(image)
     _, h, w = toimage.shape
     id = 0
@@ -229,7 +233,7 @@ print("Sliding Testing fronts...")
 
 for i in range(len(masksft)):
     image = Image.open(masksft[i])
-    suffix = os.path.splitext(os.path.basename(masksft[i]))[0]
+    suffix = os.path.splitext(os.path.basename(images[i]))[0]
     toimage = totensor(image)
     _, h, w = toimage.shape
     id = 0
