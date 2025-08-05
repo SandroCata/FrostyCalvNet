@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from AMD_HookNet_parts import *
+from models.AMD_HookNet_parts import *
 
 
 class AMD_HookNet(nn.Module):

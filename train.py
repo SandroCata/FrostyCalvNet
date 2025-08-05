@@ -47,17 +47,13 @@ from torch.utils.data import DataLoader
 dir_checkpoint = cfg.output_path
 
 
-base_data_path = Path(__file__).resolve().parents[2] / "Preprocessed_CAFFE"
+base_data_path = Path(__file__).resolve().parents[1] / "Preprocessed_CAFFE"
 
-#base_data_path = '/data/CAFFE'
-#scratch_train = os.path.join(base_data_path, 'Training')
-#scratch_valid = os.path.join(base_data_path, 'Validation')
+print(base_data_path)
 
-#ORIGINAL PART:
-
-#load data from temporary directories (environment variable "TMPDIR")
-scratch_train = os.path.join(os.environ['TMPDIR'], 'Training')
-scratch_valid = os.path.join(os.environ['TMPDIR'], 'Validation')
+#load data directly from the preprocessed dataset structure
+scratch_train = os.path.join(base_data_path, 'Training')
+scratch_valid = os.path.join(base_data_path, 'Validation')
 
 #Define the path to the target (centered) and context (wide) images, for both images and masks in training and validation.
 dir_img_target = os.path.join(scratch_train, 'target_images')

@@ -1,15 +1,17 @@
 import torch
 import torch.nn.functional as F
 import os
+import sys
 import torchmetrics
-
+from pathlib import Path
 from tqdm import tqdm
-from config import cfg
-from dice_loss import dice_coeff
-from loss import make_one_hot
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from configs.config import cfg
+from models.dice_loss import dice_coeff
+from models.loss import make_one_hot
 import logging
 import glob
-import sys
+
 import cv2
 from PIL import Image
 import numpy as np
