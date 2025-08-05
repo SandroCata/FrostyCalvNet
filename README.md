@@ -57,3 +57,25 @@ Deep study of related paper and code, especially for:
 - Understanding its complexity
 - Examining its results
 - Looking for improvements and original ideas to integrate
+
+### Step 2.1 - Data Preprocessing
+
+ - From raw data, generating target e context images to get inputs for AMD Hooknet network.
+ - Sequence of preprocessing process:
+
+    train_valid_split.py – Step 0
+
+      - Splits the dataset into train/validation with an 80/20 ratio, creating validation folders if missing and moving each SAR image along with its fronts and zones masks.
+
+    center_crop.py – Step 1
+
+      - Padding the images and masks so that their dimensions are multiples of 288 pixels, keeping the contents centered and uniform across all sets (train/valid/test).
+
+    Sliding_window_generate_dataset.py – Step 2
+
+      - Applies a sliding window with a step of 288 and a patch of 576×576 pixels to generate tiles from already centered images. The process is repeated for training, validation, and testing.
+    
+    generate_target_context.py – Step 3
+
+      - From the tiles, it produces target (central 288×288 crop) and context (576×576 window resized to 288×288) pairs for images and masks in all partitions of the dataset.
+ 
