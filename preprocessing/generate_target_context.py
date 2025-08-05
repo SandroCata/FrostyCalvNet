@@ -5,7 +5,7 @@ from pathlib import Path
 import os
 import PIL
 import numpy as np3
-from config import cfg
+#from config import cfg
 from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image
