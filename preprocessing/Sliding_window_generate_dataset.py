@@ -6,7 +6,7 @@ import os
 import PIL
 import cv2
 import numpy as np
-#from config import cfg
+from configs.config import cfg
 import time
 from PIL import Image
 from torchvision import transforms

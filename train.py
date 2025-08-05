@@ -6,6 +6,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
+from pathlib import Path
 import random
 import torch
 import torch.nn.functional as F
@@ -20,20 +21,20 @@ from PIL import Image
 from tqdm import tqdm
 
 #Config module loaded with yacs
-from config import cfg
+from configs.config import cfg
 
 #compute metrics on validation                            
-from eval_whole import eval_net
+from models.eval_whole import eval_net
 
 #model architecture
-from AMD_HookNet_model import AMD_HookNet
+from models.AMD_HookNet_model import AMD_HookNet
 
 #load patch images + masks 
-from dataset import BasicDataset
-from valid_dataset import BasDataset
+from data.dataset import BasicDataset
+from data.valid_dataset import BasDataset
 
 #Custom loss along with Crossentropy Loss
-from loss import DiceLoss, make_one_hot
+from models.loss import DiceLoss, make_one_hot
 
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
@@ -46,16 +47,17 @@ from torch.utils.data import DataLoader
 dir_checkpoint = cfg.output_path
 
 
+base_data_path = Path(__file__).resolve().parents[2] / "Preprocessed_CAFFE"
 
-base_data_path = '/data/CAFFE'
-scratch_train = os.path.join(base_data_path, 'Training')
-scratch_valid = os.path.join(base_data_path, 'Validation')
+#base_data_path = '/data/CAFFE'
+#scratch_train = os.path.join(base_data_path, 'Training')
+#scratch_valid = os.path.join(base_data_path, 'Validation')
 
 #ORIGINAL PART:
 
 #load data from temporary directories (environment variable "TMPDIR")
-#scratch_train = os.path.join(os.environ['TMPDIR'], 'Training')
-#scratch_valid = os.path.join(os.environ['TMPDIR'], 'Validation')
+scratch_train = os.path.join(os.environ['TMPDIR'], 'Training')
+scratch_valid = os.path.join(os.environ['TMPDIR'], 'Validation')
 
 #Define the path to the target (centered) and context (wide) images, for both images and masks in training and validation.
 dir_img_target = os.path.join(scratch_train, 'target_images')
