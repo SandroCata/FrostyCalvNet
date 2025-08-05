@@ -1,10 +1,12 @@
 # PREPROCESSING STEP 3:
 
+import sys
 import glob
 from pathlib import Path
 import os
 import PIL
 import numpy as np3
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 from configs.config import cfg
 from PIL import Image
 from torchvision import transforms

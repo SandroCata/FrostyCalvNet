@@ -1,11 +1,12 @@
 # PREPROCESSING STEP 2:
-
+import sys
 import glob
 from pathlib import Path
 import os
 import PIL
 import cv2
 import numpy as np
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 from configs.config import cfg
 import time
 from PIL import Image
