@@ -51,7 +51,7 @@ class Upsample(nn.Module):
 
 
 class T_Upsample(nn.Module):
-    def __init__(self, in_channels, out_channels, n_filters, i, kernel_size=3):
+    def __init__(self, in_channels, out_channels, n_filters, n_classes, i, kernel_size=3):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_channels, in_channels, kernel_size=2, stride=2)
 
@@ -60,7 +60,7 @@ class T_Upsample(nn.Module):
 
         ratio = 4
         if i == 'up1':
-            self.Pre = nn.Conv2d(64 * ratio, 4, kernel_size=1)
+            self.Pre = nn.Conv2d(out_channels, n_classes, kernel_size=1)
             self.queryd = nn.Conv2d(in_channels, in_channels, kernel_size=1)
             self.keyd = nn.Conv2d(in_channels, in_channels, kernel_size=1)
             self.valued = nn.Conv2d(in_channels, in_channels, kernel_size=1)
@@ -68,7 +68,7 @@ class T_Upsample(nn.Module):
             self.gammad = nn.Parameter(torch.zeros(1))
 
         elif i == 'up2':
-            self.Pre = nn.Conv2d(32 * ratio, 4, kernel_size=1)
+            self.Pre = nn.Conv2d(out_channels, n_classes, kernel_size=1)
             self.queryd = nn.Conv2d(in_channels, in_channels, kernel_size=1)
             self.keyd = nn.Conv2d(in_channels, in_channels, kernel_size=1)
             self.valued = nn.Conv2d(in_channels, in_channels, kernel_size=1)
@@ -76,7 +76,7 @@ class T_Upsample(nn.Module):
             self.gammad = nn.Parameter(torch.zeros(1))
 
         elif i == 'up3':
-            self.Pre = nn.Conv2d(16 * ratio, 4, kernel_size=1)
+            self.Pre = nn.Conv2d(out_channels, n_classes, kernel_size=1)
             self.queryd = nn.Conv2d(in_channels, in_channels, kernel_size=1)
             self.keyd = nn.Conv2d(in_channels, in_channels, kernel_size=1)
             self.valued = nn.Conv2d(in_channels, in_channels, kernel_size=1)

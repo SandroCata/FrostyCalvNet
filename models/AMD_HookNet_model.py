@@ -32,9 +32,9 @@ class AMD_HookNet(nn.Module):
         self.t_down3 = Downsample(n_filters * 4, n_filters * 8)
         self.t_down4 = Downsample(n_filters * 8, n_filters * 10)
 
-        self.t_up1 = T_Upsample(n_filters * 18, n_filters * 8, n_filters, i='up1')
-        self.t_up2 = T_Upsample(n_filters * 12, n_filters * 4, n_filters, i='up2')
-        self.t_up3 = T_Upsample(n_filters * 6, n_filters * 2, n_filters, i='up3')
+        self.t_up1 = T_Upsample(n_filters * 18, n_filters * 8, n_filters, n_classes, i='up1')
+        self.t_up2 = T_Upsample(n_filters * 12, n_filters * 4, n_filters, n_classes, i='up2')
+        self.t_up3 = T_Upsample(n_filters * 6, n_filters * 2, n_filters, n_classes, i='up3')
         self.t_up4 = Upsample(n_filters * 2, n_filters)
         
         self.t_out = Output(n_filters, n_classes)

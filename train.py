@@ -91,11 +91,11 @@ def train_net(net,
               optimizer,
               scheduler,
               eepoch,
-              epochs=5,
-              batch_size=128,
-              lr=0.001,
-              save_cp=True,
-              img_scale=1,
+              epochs,
+              batch_size,
+              lr,
+              save_cp,
+              img_scale,
               ):
     
     #Create dataloader with extracted patches (using BasicDataset and BasDataset). Batch_size is configurable, num_workers=16 → multi-threaded. In the test, the batch size is 1 for single patch evaluation.
@@ -103,8 +103,8 @@ def train_net(net,
     valid_dataset = BasDataset(valid_img_target, valid_img_context, valid_mask_target, valid_mask_context, cfg.scale)
 
     n_dataset = len(dataset)
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=16, pin_memory=True, drop_last=False)
-    valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False, num_workers=16, pin_memory=True, drop_last=False)
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=cfg.num_workers, pin_memory=True, drop_last=False)
+    valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False, num_workers=cfg.num_workers, pin_memory=True, drop_last=False)
 
     logging.info(f'''Starting training:
         Total epochs:          {epochs}
@@ -241,13 +241,8 @@ if __name__ == '__main__':
         device_name = 'CPU'
         logging.info(f'Using device {device}')
     seed_torch(cfg.seed)
-    cfg.n_classes = 2             #4 if std_segmentation
-    cfg.in_channels = 1
-    cfg.n_filters = 32
-    cfg.batch_size = 16
-    cfg.total_epoch = 1
     eepoch = 0
-    cfg.load = False
+    
 
     # log hyperparameters
     hyperparams = {
@@ -308,6 +303,7 @@ if __name__ == '__main__':
                   batch_size=cfg.batch_size,
                   lr=cfg.learning_rate,
                   device=device,
+                  save_cp=True,
                   img_scale=cfg.scale,
                   )
 
