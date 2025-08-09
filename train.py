@@ -15,6 +15,7 @@ import torch.nn as nn
 import logging
 import sys
 import cv2
+from datetime import datetime
 import numpy as np
 from torch import optim
 from PIL import Image
@@ -47,9 +48,9 @@ from torch.utils.data import DataLoader
 dir_checkpoint = cfg.output_path
 
 
-base_data_path = Path(__file__).resolve().parents[1] / "Preprocessed_CAFFE"
+base_data_path = Path(__file__).resolve().parents[1] / "Preprocessed_CAFFE_fronts"  #_zones if std_segm
 
-print(base_data_path)
+#print(base_data_path)
 
 #load data directly from the preprocessed dataset structure
 scratch_train = os.path.join(base_data_path, 'Training')
@@ -110,7 +111,7 @@ def train_net(net,
         Batch size:            {batch_size}
         Initial learning rate: {lr}
         Save checkpoints:      {save_cp}
-        Device:                {device.type}
+        Device:                {device.type} ({torch.cuda.get_device_name(device) if device.type == 'cuda' else 'CPU'})
     ''')
     
     #Use CE + Dice combination for both target and context → more stability and accuracy on edges.
@@ -123,7 +124,7 @@ def train_net(net,
         epoch_loss = 0
         with tqdm(total=n_dataset, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
             for batch in train_loader:
-
+                
                 #Extract target patches and context (images and masks).
                 imgs_target = batch['image_target']
                 imgs_context = batch['image_context']
@@ -142,22 +143,22 @@ def train_net(net,
                     small_mask = F.avg_pool2d(big_mask, 2)
                     masks.append(small_mask)
 
-                small = masks[1:]
+                small = [m.squeeze(1).long() for m in masks[1:]]
 
                 imgs_target = imgs_target.to(device=device, dtype=torch.float32)
                 imgs_context = imgs_context.to(device=device, dtype=torch.float32)
 
-                mask_type = torch.float32 if net.n_classes <= 2 else torch.int64
-                true_masks_target = true_masks_target.to(device=device, dtype=mask_type)
-                true_masks_context = true_masks_context.to(device=device, dtype=mask_type)
+                #mask_type = torch.float32 if net.n_classes <= 2 else torch.int64
+                true_masks_target = true_masks_target.to(device=device, dtype=torch.int64)
+                true_masks_context = true_masks_context.to(device=device, dtype=torch.int64)
 
                 #Pass both patches (context and target) to the AMD-HookNet network.
                 masks_pred = net(imgs_context, imgs_target)
 
                 true_masks_context_dice = torch.unsqueeze(true_masks_context, dim=1)
-                true_masks_context_dice = make_one_hot(true_masks_context_dice.type(torch.int64), 4)
+                true_masks_context_dice = make_one_hot(true_masks_context_dice.type(torch.int64), net.n_classes)
                 true_masks_target_dice = torch.unsqueeze(true_masks_target, dim=1)
-                true_masks_target_dice = make_one_hot(true_masks_target_dice.type(torch.int64), 4)
+                true_masks_target_dice = make_one_hot(true_masks_target_dice.type(torch.int64), net.n_classes)
 
                 c_loss1 = criterion1(masks_pred[0], true_masks_context)
                 t_loss1 = criterion1(masks_pred[1], true_masks_target)
@@ -179,9 +180,10 @@ def train_net(net,
                 loss_deep = 0
 
                 for i in range(len(masks_pred[2])):
-                    lossc = criterion1(masks_pred[2][2 - i], small[i].cuda().type(torch.int64))
-                    dice = torch.unsqueeze(small[i].cuda().type(torch.int64), dim=1)
-                    dice = make_one_hot(dice.type(torch.int64), 4)
+                    target_small = small[i].to(device, dtype=torch.int64)
+                    lossc = criterion1(masks_pred[2][2 - i], target_small)
+                    dice = torch.unsqueeze(target_small, dim=1)
+                    dice = make_one_hot(dice, net.n_classes)
                     lossd = criterion2(masks_pred[2][2 - i], dice)
                     loss_deep += lossc + lossd
 
@@ -232,15 +234,55 @@ def train_net(net,
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    logging.info(f'Using device {device}')
+    if device.type == 'cuda':
+        device_name = torch.cuda.get_device_name(device)
+        logging.info(f'Using device {device} ({device_name})')
+    else:
+        device_name = 'CPU'
+        logging.info(f'Using device {device}')
     seed_torch(cfg.seed)
-    cfg.n_classes = 4
+    cfg.n_classes = 2             #4 if std_segmentation
     cfg.in_channels = 1
     cfg.n_filters = 32
-    cfg.batch_size = 30
-    cfg.total_epoch = 300
+    cfg.batch_size = 16
+    cfg.total_epoch = 1
     eepoch = 0
     cfg.load = False
+
+    # log hyperparameters
+    hyperparams = {
+        'META_ARC': cfg.META_ARC,
+        'CUDA': cfg.CUDA,
+        'output_path': cfg.output_path,
+        'in_channels': cfg.in_channels,
+        'n_classes': cfg.n_classes,
+        'n_filters': cfg.n_filters,
+        'filter_size': cfg.filter_size,
+        'learning_rate': cfg.learning_rate,
+        'gamma': cfg.gamma,
+        'total_epoch': cfg.total_epoch,
+        'steps': cfg.steps,
+        'batch_size': cfg.batch_size,
+        'seed': cfg.seed,
+        'load': cfg.load,
+        'scale': cfg.scale,
+        'device': device.type,
+        'device_name': device_name,
+    }
+
+    for k, v in hyperparams.items():
+        logging.info(f'{k}: {v}')
+
+    log_dir = Path('logs')
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / f'hyperparams_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+    with open(log_file, 'w') as f:
+        for k, v in hyperparams.items():
+            f.write(f'{k}: {v}\n')
+    logging.info(f'Hyperparameters saved to {log_file}')
+
+
+
     net = AMD_HookNet(cfg.in_channels, cfg.n_classes, cfg.filter_size, cfg.n_filters)
     net.init_weights()
     net.to(device=device)
