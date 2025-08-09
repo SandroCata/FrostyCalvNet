@@ -15,7 +15,7 @@ import tormentor
 
 class BasDataset(Dataset):
     def __init__(self, dir_img_target, dir_img_context, dir_mask_target, dir_mask_context, scale=1,
-                 mask_suffix='_zones_NA'):
+                 mask_suffix=''):
         self.imgs_target = dir_img_target
         self.imgs_context = dir_img_context
         self.masks_target = dir_mask_target
@@ -74,7 +74,14 @@ class BasDataset(Dataset):
             img_trans = img_trans / 255
 
         return img_trans
-
+    
+    def mask_preprocess(self, pil_img, scale):
+        img = np.array(pil_img)
+        if img.ndim == 3:
+            img = img[:, :, 0]
+        mask = (img > 0).astype(np.uint8) 
+        return mask
+    """
     def mask_preprocess(self, pil_img, scale):
         w, h = pil_img.size
         newW, newH = int(scale * w), int(scale * h)
@@ -102,7 +109,7 @@ class BasDataset(Dataset):
         mask[ocean_ice] = 3
 
         return mask
-
+    """
     def __getitem__(self, i):
         idx = self.ids[i]
         imgs_target = glob(self.imgs_target + '/' + idx + '.*')
@@ -111,15 +118,16 @@ class BasDataset(Dataset):
         masks_context = glob(self.masks_context + '/' + idx + self.mask_suffix + '.*')
 
         suffix = idx + self.mask_suffix
-        assert len(masks_target) == 1, \
-            f'Either no mask or multiple masks found for the ID {idx}: {mask_target}'
-        assert len(imgs_target) == 1, \
-            f'Either no image or multiple images found for the ID {idx}: {img_target}'
 
         mask_target = Image.open(masks_target[0])
         target = Image.open(imgs_target[0])
         mask_context = Image.open(masks_context[0])
         context = Image.open(imgs_context[0])
+
+        assert len(masks_target) == 1, \
+            f'Either no mask or multiple masks found for the ID {idx}: {mask_target}'
+        assert len(imgs_target) == 1, \
+            f'Either no image or multiple images found for the ID {idx}: {target}'
 
         assert target.size == mask_target.size, \
             f'Image and mask {idx} should be the same size, but are {target.size} and {mask_target.size}'

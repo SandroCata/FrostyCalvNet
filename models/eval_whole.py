@@ -11,6 +11,7 @@ from models.dice_loss import dice_coeff
 from models.loss import make_one_hot
 import logging
 import glob
+import tempfile
 
 import cv2
 from PIL import Image
@@ -90,7 +91,8 @@ def eval_net(net, loader, device):
     n_val = len(loader)
     iou_ratio = 0
     success_ratio = 0
-    test_save = os.path.join(os.environ['TMPDIR'], 'patch_save')
+    tmp_dir = os.getenv('TMPDIR', tempfile.gettempdir())
+    test_save = os.path.join(tmp_dir, 'patch_save')
     if not os.path.exists(test_save):
         os.makedirs(test_save)
     with tqdm(total=n_val, desc='Round', unit='img') as pbar:
@@ -132,8 +134,8 @@ def eval_net(net, loader, device):
                 iou_ratio += iou
             pbar.update()
 
-    groundtruth = os.path.join(os.environ['TMPDIR'], 'ori')
-    whole_save = os.path.join(os.environ['TMPDIR'], 'whole_save')
+    groundtruth = os.path.join(tmp_dir, 'ori')
+    whole_save = os.path.join(tmp_dir, 'whole_save')
     
     masks_ground = sorted(glob.glob(os.path.join(groundtruth, '*.png')))
 
