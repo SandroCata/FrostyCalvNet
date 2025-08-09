@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as F
 import os
 import sys
-import torchmetrics
 from pathlib import Path
 from tqdm import tqdm
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -13,6 +12,15 @@ import logging
 import glob
 import tempfile
 
+# ``torchmetrics`` has renamed ``IoU`` to ``JaccardIndex`` in newer
+# versions. Import lazily so that the evaluation code can adapt to the
+# available API and still run even if ``torchmetrics`` is not installed
+# at import time.
+try:  # pragma: no cover - defensive import
+    import torchmetrics  # type: ignore
+except Exception:  # pragma: no cover
+    torchmetrics = None
+
 import cv2
 from PIL import Image
 import numpy as np
@@ -21,6 +29,24 @@ import sklearn.metrics
 from torchvision.utils import save_image
 
 
+def _get_iou_metric(num_classes, reduction=None):
+    """Return an IoU/Jaccard metric compatible with different torchmetrics versions."""
+    if torchmetrics is None:  # pragma: no cover - runtime safety
+        raise RuntimeError("torchmetrics is required for IoU computation")
+
+    if hasattr(torchmetrics, "IoU"):
+        kwargs = {"num_classes": num_classes, "absent_score": 1}
+        if reduction is not None:
+            kwargs["reduction"] = reduction
+        return torchmetrics.IoU(**kwargs)
+
+    # ``IoU`` was renamed to ``JaccardIndex`` in newer torchmetrics releases.
+    from torchmetrics import JaccardIndex
+    task = "binary" if num_classes == 2 else "multiclass"
+    average = None if reduction == "none" else reduction
+    return JaccardIndex(task=task, num_classes=num_classes, average=average)
+
+"""
 def mask_preprocess(pil_img):
     img_nd = np.array(pil_img)
 
@@ -43,8 +69,18 @@ def mask_preprocess(pil_img):
     mask[ocean_ice] = 3
 
     return mask
+"""
+
+def mask_preprocess(pil_img):
+    """Convert a PIL mask image to a binary NumPy array."""
+    img = np.array(pil_img)
+    if img.ndim == 3:
+        img = img[:, :, 0]
+    mask = (img > 0).astype(np.uint8)
+    return mask
 
 
+"""
 def whole_preprocess(pil_img):
     img_nd = np.array(pil_img)
     if len(img_nd.shape) == 2:
@@ -66,8 +102,17 @@ def whole_preprocess(pil_img):
     mask[ocean_ice] = 3
 
     return mask
+"""
 
+def whole_preprocess(pil_img):
+    """Convert a PIL image of the whole mask to a binary NumPy array."""
+    img = np.array(pil_img)
+    if img.ndim == 3:
+        img = img[:, :, 0]
+    mask = (img > 0).astype(np.uint8)
+    return mask
 
+""""
 def mask_to_image(pre_mask, save_path, suffix):
     c, h, w = pre_mask.shape
     out = np.zeros((3, h, w), dtype=np.uint8)
@@ -83,6 +128,18 @@ def mask_to_image(pre_mask, save_path, suffix):
     out[2] = out[0]
     out = out.transpose((1, 2, 0))
     cv2.imwrite(os.path.join(save_path, suffix + '.png'), out, [int(cv2.IMWRITE_PNG_COMPRESSION), 9])
+"""
+def mask_to_image(pre_mask, save_path, suffix):
+     # ensure shape is (batch, h, w)
+    if pre_mask.ndim == 4:
+        pre_mask = pre_mask.squeeze(1)
+    
+    c, h, w = pre_mask.shape
+    out = np.zeros((h, w), dtype=np.uint8)
+    out[np.where(pre_mask.to("cpu") > 0)] = 255
+    out = np.repeat(out[np.newaxis, :, :], 3, axis=0).transpose((1, 2, 0))
+    cv2.imwrite(os.path.join(save_path, suffix + '.png'), out, [int(cv2.IMWRITE_PNG_COMPRESSION), 9])
+
 
 
 def eval_net(net, loader, device):
@@ -110,7 +167,7 @@ def eval_net(net, loader, device):
                 masks_pred = net(imgs_context, imgs_target)
 
             if net.n_classes > 2:
-                IOU = torchmetrics.IoU(num_classes=4, absent_score=1)
+                IOU = _get_iou_metric(num_classes=4)
 
                 prd_target = F.log_softmax(masks_pred[1], dim=1)
                 prd_target = torch.argmax(prd_target, dim=1)
@@ -126,7 +183,7 @@ def eval_net(net, loader, device):
                 success_ratio += torch.sum(new) / (c * h * w)
 
             else:
-                IOU = torchmetrics.IoU(num_classes=2, absent_score=1)
+                IOU = _get_iou_metric(num_classes=2)
                 pred = torch.sigmoid(masks_pred[1])
                 pred = (pred > 0.5).float()
                 success_ratio += dice_coeff(pred.cpu().detach(), true_masks_target.cpu().detach()).item()
@@ -146,7 +203,7 @@ def eval_net(net, loader, device):
     if not os.path.exists(whole_save):
         os.makedirs(whole_save)
 
-    IOU = torchmetrics.IoU(num_classes=4, absent_score=1, reduction='none')
+    IOU = _get_iou_metric(num_classes=4 if net.n_classes > 2 else 2, reduction='none')
     iou_ratio = 0
     success_ratio = 0
     for i in range(len(masks_ground)):
