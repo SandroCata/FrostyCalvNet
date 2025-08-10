@@ -1,0 +1,17 @@
+META_ARC: AMD_HookNet
+CUDA: True
+output_path: ./checkpoints
+in_channels: 1
+n_classes: 2
+n_filters: 8
+filter_size: 3
+learning_rate: 0.001
+gamma: 0.999
+total_epoch: 1
+steps: 2
+batch_size: 8
+seed: 123
+load: False
+scale: 1.0
+device: cuda
+device_name: NVIDIA GeForce RTX 4060 Laptop GPU

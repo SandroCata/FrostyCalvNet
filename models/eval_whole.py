@@ -185,6 +185,9 @@ def eval_net(net, loader, device):
             else:
                 IOU = _get_iou_metric(num_classes=2)
                 pred = torch.sigmoid(masks_pred[1])
+                if pred.ndim == 4:
+                    pred = pred[:, 1, ...] if pred.shape[1] > 1 else pred[:, 0, ...]
+
                 pred = (pred > 0.5).float()
                 success_ratio += dice_coeff(pred.cpu().detach(), true_masks_target.cpu().detach()).item()
                 iou = IOU(pred.cpu().detach(), true_masks_target.type(torch.int64).cpu().detach())
