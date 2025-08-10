@@ -204,6 +204,7 @@ def train_net(net,
         print('Train average loss:', epoch_loss / n_dataset)
         print('lr:', optimizer.param_groups[0]['lr'])
 
+        
         #Evaluate model at each epoch (print metrics)
         success_ratio, vaild_iou_ratio, iou = eval_net(net, valid_loader, device)
         print('Validation iou ratio: {}, {}'.format(vaild_iou_ratio, iou))
@@ -215,14 +216,18 @@ def train_net(net,
                 print('Created checkpoint directory')
             except OSError:
                 pass
-            torch.save({'net_state_dict': net.state_dict(),
+            checkpoint_path = os.path.join(
+                dir_checkpoint, f'AMD_HookNet_epoch{epoch + 1:03d}.pth'
+            )
+            torch.save({
+                        'net_state_dict': net.state_dict(),
                         'optimizer_state_dict': optimizer.state_dict(),
                         'epoch': epoch + 1,
                         'lr_schedule': scheduler.state_dict(),
                         },
-                        os.path.join(dir_checkpoint, 'AMD_HookNet_epoch{:03d}.pth'.format(epoch + 1)))
+                        checkpoint_path)
 
-            print('Checkpoint {:03d} saved!\n'.format(os.path.join(dir_checkpoint, 'AMD_HookNet_epoch{:03d}.pth'.format(epoch + 1))))
+            print(f'Checkpoint {checkpoint_path} saved!\n')
             
         if epoch < epochs - 1:
 
