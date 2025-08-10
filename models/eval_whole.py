@@ -199,6 +199,14 @@ def eval_net(net, loader, device):
     
     masks_ground = sorted(glob.glob(os.path.join(groundtruth, '*.png')))
 
+    if len(masks_ground) == 0:
+        mean_success = success_ratio / max(n_val, 1)
+        mean_iou = iou_ratio / max(n_val, 1)
+        if torch.is_tensor(mean_iou):
+            mean_iou = mean_iou.item()
+        net.train()
+        return mean_success, mean_iou, mean_iou
+
     totensor = transforms.Compose([
         transforms.ToTensor(),
     ])
