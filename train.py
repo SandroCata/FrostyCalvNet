@@ -85,6 +85,18 @@ def seed_torch(seed=0):
 
 #-----------------------------------------------------------------------
 
+# HELPER FUNCTIONS
+
+def get_latest_checkpoint(checkpoint_dir: str) -> str:
+    """Return the path to the most recent checkpoint file in a directory."""
+    checkpoint_dir = Path(checkpoint_dir)
+    checkpoints = sorted(checkpoint_dir.glob('*.pth'))
+    if not checkpoints:
+        raise FileNotFoundError(f'No checkpoint files found in {checkpoint_dir}')
+    return str(checkpoints[-1])
+
+#-----------------------------------------------------------------------
+
 # TRAINING FUNCTION:
 
 #
@@ -346,14 +358,17 @@ if __name__ == '__main__':
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=cfg.gamma)
 
     if cfg.load:
-        checkpoints = torch.load(cfg.load, map_location=device)
+        if isinstance(cfg.load, str):
+            checkpoint_path = cfg.load
+        else:
+            checkpoint_path = get_latest_checkpoint(dir_checkpoint)
+        checkpoints = torch.load(checkpoint_path, map_location=device)
         net.load_state_dict(checkpoints['net_state_dict'])
         optimizer.load_state_dict(checkpoints['optimizer_state_dict'])
         eepoch = checkpoints['epoch']
         scheduler.load_state_dict(checkpoints['lr_schedule'])
         scheduler.last_epoch = eepoch
-        logging.info(f'Model loaded from {cfg.load}')
-
+        logging.info(f'Model loaded from {checkpoint_path}')
     try:
         train_net(net=net,
                   optimizer=optimizer,
