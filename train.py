@@ -11,6 +11,8 @@ import random
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+import csv
+import matplotlib.pyplot as plt
 
 import logging
 import sys
@@ -119,6 +121,9 @@ def train_net(net,
     criterion2 = DiceLoss()
 
     #Training loop
+    train_losses = []
+    val_iou_list = []
+    val_success_list = []
     for epoch in range(eepoch, epochs):
         net.train()
         epoch_loss = 0
@@ -155,10 +160,10 @@ def train_net(net,
                 #Pass both patches (context and target) to the AMD-HookNet network.
                 masks_pred = net(imgs_context, imgs_target)
 
-                true_masks_context_dice = torch.unsqueeze(true_masks_context, dim=1)
-                true_masks_context_dice = make_one_hot(true_masks_context_dice.type(torch.int64), net.n_classes)
-                true_masks_target_dice = torch.unsqueeze(true_masks_target, dim=1)
-                true_masks_target_dice = make_one_hot(true_masks_target_dice.type(torch.int64), net.n_classes)
+                true_masks_context_dice = torch.unsqueeze(true_masks_context, dim=1).to(device=device, dtype=torch.int64)
+                true_masks_context_dice = make_one_hot(true_masks_context_dice, net.n_classes)
+                true_masks_target_dice = torch.unsqueeze(true_masks_target, dim=1).to(device=device, dtype=torch.int64)
+                true_masks_target_dice = make_one_hot(true_masks_target_dice, net.n_classes)
 
                 c_loss1 = criterion1(masks_pred[0], true_masks_context)
                 t_loss1 = criterion1(masks_pred[1], true_masks_target)
@@ -190,9 +195,9 @@ def train_net(net,
                 #Combined
                 loss = t_loss + c_loss + 0.5 * loss_deep
 
-                epoch_loss += loss.item() / imgs_context.shape[0]
+                epoch_loss += loss.item() * imgs_context.shape[0]
 
-                pbar.set_postfix({'loss': loss.item() / imgs_context.shape[0]})
+                pbar.set_postfix({'loss': loss.item()})
 
                 #Classic backward cycle
                 optimizer.zero_grad()
@@ -201,13 +206,18 @@ def train_net(net,
 
                 pbar.update(imgs_context.shape[0])
 
-        print('Train average loss:', epoch_loss / n_dataset)
+        train_loss = epoch_loss / n_dataset
+        print('Train average loss:', train_loss)
         print('lr:', optimizer.param_groups[0]['lr'])
 
         
         #Evaluate model at each epoch (print metrics)
         success_ratio, vaild_iou_ratio, iou = eval_net(net, valid_loader, device)
         print('Validation iou ratio: {}, {}'.format(vaild_iou_ratio, iou))
+
+        train_losses.append(train_loss)
+        val_success_list.append(success_ratio)
+        val_iou_list.append(vaild_iou_ratio)
 
         #Save model, optimizer, learning rate scheduler, current epoch.
         if save_cp:
@@ -233,6 +243,38 @@ def train_net(net,
 
             #Learning rate scheduler (gamma decreases at each epoch)
             scheduler.step()
+        
+    epochs_range = list(range(eepoch + 1, epochs + 1))
+    metrics_path = Path(dir_checkpoint) / 'metrics.csv'
+    with open(metrics_path, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['epoch', 'train_loss', 'val_success', 'val_iou'])
+        for ep, tl, vs, vi in zip(epochs_range, train_losses, val_success_list, val_iou_list):
+            writer.writerow([ep, tl, vs, vi])
+
+    plt.figure()
+    plt.plot(epochs_range, train_losses, marker='o')
+    plt.title('Training Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.savefig(Path(dir_checkpoint) / 'train_loss.png')
+    plt.close()
+
+    plt.figure()
+    plt.plot(epochs_range, val_iou_list, marker='o')
+    plt.title('Validation IoU')
+    plt.xlabel('Epoch')
+    plt.ylabel('IoU')
+    plt.savefig(Path(dir_checkpoint) / 'val_iou.png')
+    plt.close()
+
+    plt.figure()
+    plt.plot(epochs_range, val_success_list, marker='o')
+    plt.title('Validation Success Ratio')
+    plt.xlabel('Epoch')
+    plt.ylabel('Success Ratio')
+    plt.savefig(Path(dir_checkpoint) / 'val_success.png')
+    plt.close()
 
 
 #main section

@@ -323,7 +323,7 @@ class DiceLoss(nn.Module):
 def make_one_hot(input, num_classes):
     """Convert class index tensor to one hot encoding tensor.
     Args:
-        input: A tensor of shape [N, 1, *]
+        input: A tensor of shape [N, 1, *] on the target device
         num_classes: An int of number of class
     Returns:
         A tensor of shape [N, num_classes, *]
@@ -331,7 +331,7 @@ def make_one_hot(input, num_classes):
     shape = np.array(input.shape)
     shape[1] = num_classes
     shape = tuple(shape)
-    result = torch.zeros(shape).cuda()
+    result = torch.zeros(shape, device=input.device)
     result = result.scatter_(1, input, 1)
 
     return result

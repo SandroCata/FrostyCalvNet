@@ -135,10 +135,20 @@ def mask_to_image(pre_mask, save_path, suffix):
         pre_mask = pre_mask.squeeze(1)
     
     c, h, w = pre_mask.shape
-    out = np.zeros((h, w), dtype=np.uint8)
-    out[np.where(pre_mask.to("cpu") > 0)] = 255
-    out = np.repeat(out[np.newaxis, :, :], 3, axis=0).transpose((1, 2, 0))
-    cv2.imwrite(os.path.join(save_path, suffix + '.png'), out, [int(cv2.IMWRITE_PNG_COMPRESSION), 9])
+    out = np.zeros((3, h, w), dtype=np.uint8)
+    mask_cpu = pre_mask.to("cpu")
+
+    if mask_cpu.max() <= 1:
+        out[:, mask_cpu == 1] = 255
+    else:
+        out[:, mask_cpu == 1] = 64
+        out[:, mask_cpu == 2] = 127
+        out[:, mask_cpu == 3] = 254
+
+    out = out.transpose((1, 2, 0))
+    if save_path is not None and suffix is not None:
+        cv2.imwrite(os.path.join(save_path, suffix + '.png'), out, [int(cv2.IMWRITE_PNG_COMPRESSION), 9])
+    return out
 
 
 
@@ -152,6 +162,9 @@ def eval_net(net, loader, device):
     test_save = os.path.join(tmp_dir, 'patch_save')
     if not os.path.exists(test_save):
         os.makedirs(test_save)
+    comparison_dir = os.path.join(cfg.output_path, 'comparisons')
+    if not os.path.exists(comparison_dir):
+        os.makedirs(comparison_dir)
     with tqdm(total=n_val, desc='Round', unit='img') as pbar:
         for batch in loader:
             imgs_target = batch['image_target']
@@ -172,7 +185,10 @@ def eval_net(net, loader, device):
                 prd_target = F.log_softmax(masks_pred[1], dim=1)
                 prd_target = torch.argmax(prd_target, dim=1)
 
-                mask_to_image(prd_target, test_save, suffix)
+                pred_img = mask_to_image(prd_target, test_save, suffix)
+                gt_img = mask_to_image(true_masks_target)
+                comparison = np.concatenate([gt_img, pred_img], axis=1)
+                cv2.imwrite(os.path.join(comparison_dir, suffix + '.png'), comparison)
 
                 c, h, w = true_masks_target.shape
                 iou = IOU(prd_target.cpu().detach(), true_masks_target.cpu().detach())
@@ -184,14 +200,18 @@ def eval_net(net, loader, device):
 
             else:
                 IOU = _get_iou_metric(num_classes=2)
-                pred = torch.sigmoid(masks_pred[1])
-                if pred.ndim == 4:
-                    pred = pred[:, 1, ...] if pred.shape[1] > 1 else pred[:, 0, ...]
+                pred = F.softmax(masks_pred[1], dim=1)
+                pred = torch.argmax(pred, dim=1)
+                success_ratio += dice_coeff(pred.float().cpu().detach(), true_masks_target.cpu().detach()).item()
 
                 pred = (pred > 0.5).float()
                 success_ratio += dice_coeff(pred.cpu().detach(), true_masks_target.cpu().detach()).item()
                 iou = IOU(pred.cpu().detach(), true_masks_target.type(torch.int64).cpu().detach())
                 iou_ratio += iou
+                pred_img = mask_to_image(pred.unsqueeze(1))
+                gt_img = mask_to_image(true_masks_target)
+                comparison = np.concatenate([gt_img, pred_img], axis=1)
+                cv2.imwrite(os.path.join(comparison_dir, suffix + '.png'), comparison)
             pbar.update()
 
     groundtruth = os.path.join(tmp_dir, 'ori')

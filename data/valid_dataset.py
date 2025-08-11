@@ -50,10 +50,30 @@ class BasDataset(Dataset):
             angle = 180
         elif random == 2:
             angle = 270
-        target = torchvision.transforms.functional.rotate(target_image, angle=angle)
-        context = torchvision.transforms.functional.rotate(context_image, angle=angle)
-        mask_target = torchvision.transforms.functional.rotate(target_mask.unsqueeze(0), angle=angle)
-        mask_context = torchvision.transforms.functional.rotate(context_mask.unsqueeze(0), angle=angle)
+            
+        # Rotate images with bilinear interpolation
+        target = torchvision.transforms.functional.rotate(
+            target_image,
+            angle=angle,
+            interpolation=torchvision.transforms.InterpolationMode.BILINEAR,
+        )
+        context = torchvision.transforms.functional.rotate(
+            context_image,
+            angle=angle,
+            interpolation=torchvision.transforms.InterpolationMode.BILINEAR,
+        )
+
+        # Masks require nearest interpolation to maintain discrete values
+        mask_target = torchvision.transforms.functional.rotate(
+            target_mask.unsqueeze(0),
+            angle=angle,
+            interpolation=torchvision.transforms.InterpolationMode.NEAREST,
+        )
+        mask_context = torchvision.transforms.functional.rotate(
+            context_mask.unsqueeze(0),
+            angle=angle,
+            interpolation=torchvision.transforms.InterpolationMode.NEAREST,
+        )
 
         return target, context, mask_target.squeeze(0), mask_context.squeeze(0)
 
