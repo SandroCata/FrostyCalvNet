@@ -129,7 +129,7 @@ def mask_to_image(pre_mask, save_path, suffix):
     out = out.transpose((1, 2, 0))
     cv2.imwrite(os.path.join(save_path, suffix + '.png'), out, [int(cv2.IMWRITE_PNG_COMPRESSION), 9])
 """
-def mask_to_image(pre_mask, save_path, suffix):
+def mask_to_image(pre_mask, save_path=None, suffix=None):
      # ensure shape is (batch, h, w)
     if pre_mask.ndim == 4:
         pre_mask = pre_mask.squeeze(1)

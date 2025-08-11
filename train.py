@@ -208,8 +208,7 @@ def train_net(net,
 
         train_loss = epoch_loss / n_dataset
         print('Train average loss:', train_loss)
-        print('lr:', optimizer.param_groups[0]['lr'])
-
+        print(f"lr ≈  {optimizer.param_groups[0]['lr']:.5f}")
         
         #Evaluate model at each epoch (print metrics)
         success_ratio, vaild_iou_ratio, iou = eval_net(net, valid_loader, device)
