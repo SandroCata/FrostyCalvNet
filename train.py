@@ -125,6 +125,7 @@ def train_net(net,
     val_iou_list = []
     val_success_list = []
     for epoch in range(eepoch, epochs):
+
         net.train()
         epoch_loss = 0
         with tqdm(total=n_dataset, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
@@ -209,6 +210,7 @@ def train_net(net,
         train_loss = epoch_loss / n_dataset
         print('Train average loss:', train_loss)
         print(f"lr ≈  {optimizer.param_groups[0]['lr']:.5f}")
+
         
         #Evaluate model at each epoch (print metrics)
         success_ratio, vaild_iou_ratio, iou = eval_net(net, valid_loader, device)

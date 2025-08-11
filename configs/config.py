@@ -9,6 +9,8 @@ __C.META_ARC = "AMD_HookNet"
 __C.CUDA = True
 
 __C.output_path = './checkpoints'
+__C.output_path_predictions = './predictions'
+
 
 # model
 __C.num_workers=16

@@ -130,13 +130,23 @@ def mask_to_image(pre_mask, save_path, suffix):
     cv2.imwrite(os.path.join(save_path, suffix + '.png'), out, [int(cv2.IMWRITE_PNG_COMPRESSION), 9])
 """
 def mask_to_image(pre_mask, save_path=None, suffix=None):
-     # ensure shape is (batch, h, w)
+    """Convert a prediction mask to a color image.
+
+    The function is tolerant to different tensor shapes coming from the model
+    (``(N,1,H,W)``, ``(N,H,W)`` or ``(H,W)``).  It always converts the mask to a
+    2-D array before performing the color mapping to avoid indexing errors.
+    """
     if pre_mask.ndim == 4:
         pre_mask = pre_mask.squeeze(1)
     
-    c, h, w = pre_mask.shape
+    if pre_mask.ndim == 3:
+        pre_mask = pre_mask.squeeze(0)
+
+    mask_cpu = pre_mask.to("cpu").numpy()
+    h, w = mask_cpu.shape
+
     out = np.zeros((3, h, w), dtype=np.uint8)
-    mask_cpu = pre_mask.to("cpu")
+
 
     if mask_cpu.max() <= 1:
         out[:, mask_cpu == 1] = 255
@@ -162,7 +172,7 @@ def eval_net(net, loader, device):
     test_save = os.path.join(tmp_dir, 'patch_save')
     if not os.path.exists(test_save):
         os.makedirs(test_save)
-    comparison_dir = os.path.join(cfg.output_path, 'comparisons')
+    comparison_dir = os.path.join(cfg.output_path_predictions, 'comparisons')
     if not os.path.exists(comparison_dir):
         os.makedirs(comparison_dir)
     with tqdm(total=n_val, desc='Round', unit='img') as pbar:
