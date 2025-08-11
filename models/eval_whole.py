@@ -148,7 +148,11 @@ def mask_to_image(pre_mask, save_path=None, suffix=None):
     out = np.zeros((3, h, w), dtype=np.uint8)
 
 
+    # ``mask_cpu`` may contain raw probabilities in ``[0, 1]`` coming directly
+    # from the network.  Threshold them so that the saved image is a proper
+    # binary mask instead of a grayscale probability map.
     if mask_cpu.max() <= 1:
+        mask_cpu = (mask_cpu > 0.5).astype(np.uint8)
         out[:, mask_cpu == 1] = 255
     else:
         out[:, mask_cpu == 1] = 64
