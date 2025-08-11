@@ -123,7 +123,8 @@ def train_net(net,
     #Training loop
     train_losses = []
     val_iou_list = []
-    val_success_list = []
+    #val_accuracy_list = []
+    val_precision_list = []
     for epoch in range(eepoch, epochs):
 
         net.train()
@@ -213,11 +214,12 @@ def train_net(net,
 
         
         #Evaluate model at each epoch (print metrics)
-        success_ratio, vaild_iou_ratio, iou = eval_net(net, valid_loader, device)
-        print('Validation iou ratio: {}, {}'.format(vaild_iou_ratio, iou))
+        precision, vaild_iou_ratio, iou = eval_net(net, valid_loader, device)
+        print('Validation metrics - Mean IoU: {}, Precision: {}, Per-class IoU: {}'.format(vaild_iou_ratio, precision, iou))
 
         train_losses.append(train_loss)
-        val_success_list.append(success_ratio)
+        #val_accuracy_list.append(accuracy)
+        val_precision_list.append(precision)
         val_iou_list.append(vaild_iou_ratio)
 
         #Save model, optimizer, learning rate scheduler, current epoch.
@@ -249,9 +251,9 @@ def train_net(net,
     metrics_path = Path(dir_checkpoint) / 'metrics.csv'
     with open(metrics_path, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['epoch', 'train_loss', 'val_success', 'val_iou'])
-        for ep, tl, vs, vi in zip(epochs_range, train_losses, val_success_list, val_iou_list):
-            writer.writerow([ep, tl, vs, vi])
+        writer.writerow(['epoch', 'train_loss', 'val_precision', 'val_iou'])
+        for ep, tl, va, vp, vi in zip(epochs_range, train_losses, val_precision_list, val_iou_list):
+            writer.writerow([ep, tl, va, vp, vi])
 
     plt.figure()
     plt.plot(epochs_range, train_losses, marker='o')
@@ -269,12 +271,22 @@ def train_net(net,
     plt.savefig(Path(dir_checkpoint) / 'val_iou.png')
     plt.close()
 
+    """
     plt.figure()
-    plt.plot(epochs_range, val_success_list, marker='o')
-    plt.title('Validation Success Ratio')
+    plt.plot(epochs_range, val_accuracy_list, marker='o')
+    plt.title('Validation Accuracy')
     plt.xlabel('Epoch')
-    plt.ylabel('Success Ratio')
-    plt.savefig(Path(dir_checkpoint) / 'val_success.png')
+    plt.ylabel('Accuracy')
+    plt.savefig(Path(dir_checkpoint) / 'val_accuracy.png')
+    plt.close()
+    """
+
+    plt.figure()
+    plt.plot(epochs_range, val_precision_list, marker='o')
+    plt.title('Validation Precision')
+    plt.xlabel('Epoch')
+    plt.ylabel('Precision')
+    plt.savefig(Path(dir_checkpoint) / 'val_precision.png')
     plt.close()
 
 

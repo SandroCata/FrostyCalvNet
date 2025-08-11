@@ -6,8 +6,8 @@ from pathlib import Path
 from tqdm import tqdm
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from configs.config import cfg
-from models.dice_loss import dice_coeff
-from models.loss import make_one_hot
+#from models.dice_loss import dice_coeff
+#from models.loss import make_one_hot
 import logging
 import glob
 import tempfile
@@ -171,7 +171,8 @@ def eval_net(net, loader, device):
     mask_type = torch.float32 if net.n_classes <= 2 else torch.int64
     n_val = len(loader)
     iou_ratio = 0
-    success_ratio = 0
+    #accuracy_sum = 0.0
+    precision_sum = 0.0
     tmp_dir = os.getenv('TMPDIR', tempfile.gettempdir())
     test_save = os.path.join(tmp_dir, 'patch_save')
     if not os.path.exists(test_save):
@@ -204,24 +205,34 @@ def eval_net(net, loader, device):
                 comparison = np.concatenate([gt_img, pred_img], axis=1)
                 cv2.imwrite(os.path.join(comparison_dir, suffix + '.png'), comparison)
 
-                c, h, w = true_masks_target.shape
+                
                 iou = IOU(prd_target.cpu().detach(), true_masks_target.cpu().detach())
                 iou_ratio += iou
-                correct = torch.where(prd_target == true_masks_target)
-                new = torch.zeros([c, h, w])
-                new[correct] = 1
-                success_ratio += torch.sum(new) / (c * h * w)
+
+                true_np = true_masks_target.cpu().detach().numpy().reshape(-1)
+                pred_np = prd_target.cpu().detach().numpy().reshape(-1)
+                #accuracy_sum += sklearn.metrics.accuracy_score(true_np, pred_np)
+                precision_sum += sklearn.metrics.precision_score(
+                    true_np, pred_np, average="macro", zero_division=0
+                )
 
             else:
                 IOU = _get_iou_metric(num_classes=2)
                 pred = F.softmax(masks_pred[1], dim=1)
                 pred = torch.argmax(pred, dim=1)
-                success_ratio += dice_coeff(pred.float().cpu().detach(), true_masks_target.cpu().detach()).item()
-
                 pred = (pred > 0.5).float()
-                success_ratio += dice_coeff(pred.cpu().detach(), true_masks_target.cpu().detach()).item()
-                iou = IOU(pred.cpu().detach(), true_masks_target.type(torch.int64).cpu().detach())
+
+                iou = IOU(
+                    pred.cpu().detach(),
+                    true_masks_target.type(torch.int64).cpu().detach(),
+                )
                 iou_ratio += iou
+                true_np = true_masks_target.cpu().detach().numpy().reshape(-1)
+                pred_np = pred.cpu().detach().numpy().reshape(-1)
+                #accuracy_sum += sklearn.metrics.accuracy_score(true_np, pred_np)
+                precision_sum += sklearn.metrics.precision_score(
+                    true_np, pred_np, zero_division=0
+                )
                 pred_img = mask_to_image(pred.unsqueeze(1))
                 gt_img = mask_to_image(true_masks_target)
                 comparison = np.concatenate([gt_img, pred_img], axis=1)
@@ -234,12 +245,13 @@ def eval_net(net, loader, device):
     masks_ground = sorted(glob.glob(os.path.join(groundtruth, '*.png')))
 
     if len(masks_ground) == 0:
-        mean_success = success_ratio / max(n_val, 1)
+        #mean_accuracy = accuracy_sum / max(n_val, 1)
+        mean_precision = precision_sum / max(n_val, 1)
         mean_iou = iou_ratio / max(n_val, 1)
         if torch.is_tensor(mean_iou):
             mean_iou = mean_iou.item()
         net.train()
-        return mean_success, mean_iou, mean_iou
+        return mean_precision, mean_iou, mean_iou
 
     totensor = transforms.Compose([
         transforms.ToTensor(),
@@ -250,7 +262,8 @@ def eval_net(net, loader, device):
 
     IOU = _get_iou_metric(num_classes=4 if net.n_classes > 2 else 2, reduction='none')
     iou_ratio = 0
-    success_ratio = 0
+    #accuracy_sum_whole = 0.0
+    precision_sum_whole = 0.0
     for i in range(len(masks_ground)):
         ground = masks_ground[i]
         suffix = ground.split('/')[-1].split('.')[0][0:-6]
@@ -281,17 +294,22 @@ def eval_net(net, loader, device):
 
         h, w = whole.shape
 
-        iou = IOU(torch.from_numpy(whole).type(torch.int64), torch.from_numpy(img).type(torch.int64))
+        iou = IOU(
+            torch.from_numpy(whole).type(torch.int64),
+            torch.from_numpy(img).type(torch.int64),
+        )
         iou_ratio += iou
-        correct = np.where(whole == img)
-
-        new = np.zeros([h, w])
-        new[correct] = 1
-        success_ratio += np.sum(new) / (h * w)
+        """accuracy_sum_whole += sklearn.metrics.accuracy_score(
+            img.reshape(-1), whole.reshape(-1)
+        )"""
+        precision_sum_whole += sklearn.metrics.precision_score(
+            img.reshape(-1), whole.reshape(-1), average="macro", zero_division=0
+        )
 
     iou_ratio = iou_ratio / len(masks_ground)
     ave_iou = sum(iou_ratio) / len(iou_ratio)
-    success_ratio = success_ratio / len(masks_ground)
+    #_whole = accuracy_sum_whole / len(masks_ground)
+    precision_whole = precision_sum_whole / len(masks_ground)
 
     net.train()
-    return success_ratio, ave_iou, iou_ratio
+    return precision_whole, ave_iou, iou_ratio

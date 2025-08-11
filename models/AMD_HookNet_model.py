@@ -49,6 +49,8 @@ class AMD_HookNet(nn.Module):
                 m.bias.data.zero_()
                 
     def forward(self, x, y):
+        #context flow
+
         c_residuals = []
         c_outhooks = []
         x = self.c_first(x)
@@ -71,6 +73,7 @@ class AMD_HookNet(nn.Module):
         c_outhooks.append(x)
         x = self.c_out(x)
 
+        #target flow (with hook from context)
         t_residuals = []
         y = self.t_first(y)
         t_residuals.append(y)
