@@ -147,7 +147,9 @@ def train_net(net,
     val_precision_list = []
     for epoch in range(eepoch, epochs):
 
-        """
+        current_lr = scheduler.get_last_lr()[0]
+        print(f'Epoch {epoch + 1}/{epochs} - learning rate: {current_lr:.8f}')
+
         net.train()
         epoch_loss = 0
         with tqdm(total=n_dataset, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
@@ -231,7 +233,7 @@ def train_net(net,
 
         train_loss = epoch_loss / n_dataset
         print('Train average loss:', train_loss)
-        print(f"lr ≈  {optimizer.param_groups[0]['lr']:.4f}")
+        #print(f"lr ≈  {optimizer.param_groups[0]['lr']:.4f}")
 
         
         #Evaluate model at each epoch (print metrics)
@@ -243,7 +245,7 @@ def train_net(net,
         val_precision_list.append(precision)
         val_iou_list.append(vaild_iou_ratio)
 
-        """
+        
         #Save model, optimizer, learning rate scheduler, current epoch.
         if save_cp:
             try:
