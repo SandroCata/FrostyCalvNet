@@ -21,7 +21,7 @@ __C.n_filters = 8
 __C.filter_size = 3              
 __C.learning_rate = 0.0001        
 __C.gamma=0.999
-__C.total_epoch = 1       
+__C.total_epoch = 24       
 __C.scale = 1.0                    
 __C.batch_size = 8
 

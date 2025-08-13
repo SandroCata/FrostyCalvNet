@@ -129,6 +129,10 @@ def train_net(net,
         Device:                {device.type} ({torch.cuda.get_device_name(device) if device.type == 'cuda' else 'CPU'})
     ''')
     
+    checkpoint_path = get_latest_checkpoint(dir_checkpoint) #path for latest checkpoint
+    match = re.search(r'epoch(\d+)', Path(checkpoint_path).stem)
+    index = int(match.group(1)) if match else checkpoints.get('epoch', 0) 
+
     #Use CE + Dice combination for both target and context → more stability and accuracy on edges.
     criterion1 = nn.CrossEntropyLoss()
     criterion2 = DiceLoss()
@@ -139,7 +143,7 @@ def train_net(net,
     #val_accuracy_list = []
     val_precision_list = []
     for epoch in range(eepoch, epochs):
-        
+
         net.train()
         epoch_loss = 0
         with tqdm(total=n_dataset, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
@@ -242,9 +246,8 @@ def train_net(net,
                 print('Created checkpoint directory')
             except OSError:
                 pass
-            checkpoint_path = get_latest_checkpoint(dir_checkpoint)
-            match = re.search(r'epoch(\d+)', Path(checkpoint_path).stem)
-            index = int(match.group(1)) if match else checkpoints.get('epoch', 0)
+            
+            
             checkpoint_path = os.path.join(
                 dir_checkpoint, f'AMD_HookNet_epoch{index + epoch + 1:03d}.pth'
             )
