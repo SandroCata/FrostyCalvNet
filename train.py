@@ -340,7 +340,6 @@ if __name__ == '__main__':
         'learning_rate': cfg.learning_rate,
         'gamma': cfg.gamma,
         'total_epoch': cfg.total_epoch,
-        'steps': cfg.steps,
         'batch_size': cfg.batch_size,
         'seed': cfg.seed,
         'load': cfg.load,
