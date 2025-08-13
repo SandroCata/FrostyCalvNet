@@ -22,6 +22,7 @@ import numpy as np
 from torch import optim
 from PIL import Image
 from tqdm import tqdm
+import re
 
 #Config module loaded with yacs
 from configs.config import cfg
@@ -138,7 +139,7 @@ def train_net(net,
     #val_accuracy_list = []
     val_precision_list = []
     for epoch in range(eepoch, epochs):
-
+        
         net.train()
         epoch_loss = 0
         with tqdm(total=n_dataset, desc=f'Epoch {epoch + 1}/{epochs}', unit='img') as pbar:
@@ -241,13 +242,16 @@ def train_net(net,
                 print('Created checkpoint directory')
             except OSError:
                 pass
+            checkpoint_path = get_latest_checkpoint(dir_checkpoint)
+            match = re.search(r'epoch(\d+)', Path(checkpoint_path).stem)
+            index = int(match.group(1)) if match else checkpoints.get('epoch', 0)
             checkpoint_path = os.path.join(
-                dir_checkpoint, f'AMD_HookNet_epoch{epoch + 1:03d}.pth'
+                dir_checkpoint, f'AMD_HookNet_epoch{index + epoch + 1:03d}.pth'
             )
             torch.save({
                         'net_state_dict': net.state_dict(),
                         'optimizer_state_dict': optimizer.state_dict(),
-                        'epoch': epoch + 1,
+                        'epoch': index + epoch + 1,
                         'lr_schedule': scheduler.state_dict(),
                         },
                         checkpoint_path)
