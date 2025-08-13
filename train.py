@@ -222,7 +222,7 @@ def train_net(net,
 
         train_loss = epoch_loss / n_dataset
         print('Train average loss:', train_loss)
-        print(f"lr ≈  {optimizer.param_groups[0]['lr']:.5f}")
+        print(f"lr ≈  {optimizer.param_groups[0]['lr']:.4f}")
 
         
         #Evaluate model at each epoch (print metrics)
@@ -264,8 +264,8 @@ def train_net(net,
     with open(metrics_path, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['epoch', 'train_loss', 'val_precision', 'val_iou'])
-        for ep, tl, va, vp, vi in zip(epochs_range, train_losses, val_precision_list, val_iou_list):
-            writer.writerow([ep, tl, va, vp, vi])
+        for ep, tl, vp, vi in zip(epochs_range, train_losses, val_precision_list, val_iou_list):
+            writer.writerow([ep, tl, vp, vi])
 
     plt.figure()
     plt.plot(epochs_range, train_losses, marker='o')
@@ -362,12 +362,12 @@ if __name__ == '__main__':
             checkpoint_path = cfg.load
         else:
             checkpoint_path = get_latest_checkpoint(dir_checkpoint)
-        checkpoints = torch.load(checkpoint_path, map_location=device)
+        checkpoints = torch.load(checkpoint_path, map_location=device, weights_only=False)
         net.load_state_dict(checkpoints['net_state_dict'])
         optimizer.load_state_dict(checkpoints['optimizer_state_dict'])
-        eepoch = checkpoints['epoch']
+        #eepoch = checkpoints['epoch']
         scheduler.load_state_dict(checkpoints['lr_schedule'])
-        scheduler.last_epoch = eepoch
+        scheduler.last_epoch = 0
         logging.info(f'Model loaded from {checkpoint_path}')
     try:
         train_net(net=net,
