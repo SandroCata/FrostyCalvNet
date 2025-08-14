@@ -11,6 +11,7 @@ from torchvision import transforms
 from matplotlib import pyplot as plt
 import torchvision
 import tormentor
+import warnings
 
 
 class BasicDataset(Dataset):
@@ -165,6 +166,20 @@ class BasicDataset(Dataset):
         mask_context = self.mask_preprocess(mask_context, self.scale)
         mask_target = torch.from_numpy(mask_target).type(torch.int64)
         mask_context = torch.from_numpy(mask_context).type(torch.int64)
+
+        """
+        Computed the target-mask pixel sum in __getitem__, logging the value and warning/asserting if no foreground pixels are present to catch empty datasets early
+        """
+        
+        mask_sum = int(mask_target.sum())
+        logging.debug("mask_target.sum() for %s: %d", idx, mask_sum)
+        if mask_sum == 0:
+            warnings.warn(
+                f"Mask for {idx} has no foreground pixels.",
+                RuntimeWarning,
+            )
+            logging.warning(f"Mask for {idx} has no foreground pixels.")
+        assert mask_sum != 0, f"Mask for {idx} has no foreground pixels."
 
         if np.random.random() >= 0.5:
             target, context, mask_target, mask_context = self.Fliph(target, context, mask_target, mask_context)

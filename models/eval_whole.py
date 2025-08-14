@@ -219,8 +219,32 @@ def eval_net(net, loader, device):
             else:
                 IOU = _get_iou_metric(num_classes=2)
                 pred = F.softmax(masks_pred[1], dim=1)
-                pred = torch.argmax(pred, dim=1)
-                pred = (pred > 0.5).float()
+                pred = torch.argmax(pred, dim=1).long()
+                """
+                removed redundant threshold and converted as long
+                """
+                #pred = torch.argmax(pred, dim=1)
+                #pred = (pred > 0.5).float()
+
+                # Log class distribution for predictions and ground truth
+                pred_unique, pred_counts = pred.unique(return_counts=True)
+                true_unique, true_counts = true_masks_target.unique(return_counts=True)
+                logging.info(
+                    "Prediction class distribution: %s",
+                    dict(zip(pred_unique.tolist(), pred_counts.tolist())),
+                )
+                logging.info(
+                    "Ground truth class distribution: %s",
+                    dict(zip(true_unique.tolist(), true_counts.tolist())),
+                )
+                for cls in (0, 1):
+                    p_count = pred_counts[pred_unique == cls]
+                    if p_count.numel() == 0 or p_count.item() == 0:
+                        logging.warning("no pixel predicted as %s", cls)
+                    t_count = true_counts[true_unique == cls]
+                    if t_count.numel() == 0 or t_count.item() == 0:
+                        logging.warning("no pixel real as %s", cls)
+
 
                 iou = IOU(
                     pred.cpu().detach(),
