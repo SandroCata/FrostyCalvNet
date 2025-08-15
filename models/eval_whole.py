@@ -225,7 +225,7 @@ def eval_net(net, loader, device):
                 """
                 #pred = torch.argmax(pred, dim=1)
                 #pred = (pred > 0.5).float()
-
+                """
                 # Log class distribution for predictions and ground truth
                 pred_unique, pred_counts = pred.unique(return_counts=True)
                 true_unique, true_counts = true_masks_target.unique(return_counts=True)
@@ -244,7 +244,7 @@ def eval_net(net, loader, device):
                     t_count = true_counts[true_unique == cls]
                     if t_count.numel() == 0 or t_count.item() == 0:
                         logging.warning("no pixel real as %s", cls)
-
+                """
 
                 iou = IOU(
                     pred.cpu().detach(),

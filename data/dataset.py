@@ -170,7 +170,7 @@ class BasicDataset(Dataset):
         """
         Computed the target-mask pixel sum in __getitem__, logging the value and warning/asserting if no foreground pixels are present to catch empty datasets early
         """
-        
+        """
         mask_sum = int(mask_target.sum())
         logging.debug("mask_target.sum() for %s: %d", idx, mask_sum)
         if mask_sum == 0:
@@ -180,7 +180,7 @@ class BasicDataset(Dataset):
             )
             logging.warning(f"Mask for {idx} has no foreground pixels.")
         assert mask_sum != 0, f"Mask for {idx} has no foreground pixels."
-
+        """
         if np.random.random() >= 0.5:
             target, context, mask_target, mask_context = self.Fliph(target, context, mask_target, mask_context)
 

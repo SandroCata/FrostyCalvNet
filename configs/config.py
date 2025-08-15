@@ -21,12 +21,12 @@ __C.n_filters = 8
 __C.filter_size = 3              
 __C.learning_rate = 0.001        
 __C.gamma=0.99
-__C.total_epoch = 5       
+__C.total_epoch = 6       
 __C.scale = 1.0                    
 __C.batch_size = 16
 
 
-__C.load = True
+__C.load = False
 __C.seed = 123            
 
 
