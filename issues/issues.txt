@@ -1,0 +1,21 @@
+ISSUES RISCONTRATE DURANTE GLI ADDESTRAMENTI
+
+1. Andamento metriche:
+   - Per le prime 46 epoche la rete sembra imparare qualcosa.
+   - Successivamente (epoche 47-60) le metriche si appiattiscono a 0.
+
+2. Ipotesi problema:
+   - Troppe immagini senza front nella ground truth.
+   - Possibile soluzione: rimuovere una buona parte di immagini vuote.
+
+3. Possibile ottimizzazione generale:
+   - Ridurre il numero di immagini.
+
+4. Salvataggio e caricamento modello:
+   - Controllare meglio la fase di salvataggio e caricamento del modello.
+
+5. Adattamento AMD HookNet:
+   - Controllare meglio l’adattamento fatto da standard segmentation a front segmentation.
+
+6. Learning rate:
+   - Capire se il learning rate va rimesso al valore iniziale ad ogni nuova sessione oppure no.
