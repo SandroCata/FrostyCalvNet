@@ -5,13 +5,13 @@ import torch
 import cv2
 from torch.utils.data import Dataset
 import logging
-import time
+#import time
 from PIL import Image
-from torchvision import transforms
-from matplotlib import pyplot as plt
+#from torchvision import transforms
+#from matplotlib import pyplot as plt
 import torchvision
-import tormentor
-import warnings
+#import tormentor
+#import warnings
 
 
 class BasicDataset(Dataset):
@@ -181,6 +181,7 @@ class BasicDataset(Dataset):
             logging.warning(f"Mask for {idx} has no foreground pixels.")
         assert mask_sum != 0, f"Mask for {idx} has no foreground pixels."
         """
+        
         if np.random.random() >= 0.5:
             target, context, mask_target, mask_context = self.Fliph(target, context, mask_target, mask_context)
 

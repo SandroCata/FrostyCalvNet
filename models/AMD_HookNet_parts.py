@@ -1,19 +1,27 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+#import torch.nn.functional as F
 
 """
-Conv2d: Performs a 2D convolution between the input and filters (kernels) to extract spatial features. Each filter produces an activation map, and you can specify padding, stride, and other parameters to control the size and behavior of the output.
+Conv2d: Performs a 2D convolution between the input and filters (kernels) to extract spatial features. 
+Each filter produces an activation map, and you can specify padding, stride, and other parameters to control the size and behavior of the output.
 
-BatchNorm2d: Normalizes the activations of a convolutional layer across the batch, maintaining a controlled mean and variance. Stabilizes and accelerates training by reducing the shift in the distribution of inputs to subsequent layers.
+BatchNorm2d: Normalizes the activations of a convolutional layer across the batch, maintaining a controlled mean and variance.
+Stabilizes and accelerates training by reducing the shift in the distribution of inputs to subsequent layers.
 
-ReLU (Rectified Linear Unit): Applies the nonlinear function f(x)=max⁡(0,x)f(x)=max(0,x). It clamps negative values to zero, leaving positive values unchanged. It helps introduce nonlinearity and avoid vanishing gradients.
+ReLU (Rectified Linear Unit): Applies the nonlinear function f(x)=max⁡(0,x). 
+It clamps negative values to zero, leaving positive values unchanged. 
+It helps introduce nonlinearity and avoid vanishing gradients.
 
-MaxPool2d: Reduces spatial resolution by selecting the maximum value within non-overlapping or partially overlapping windows (kernels). It is useful for summarizing local features and increasing robustness to shifts.
+MaxPool2d: Reduces spatial resolution by selecting the maximum value within non-overlapping or partially overlapping windows (kernels).
+It is useful for summarizing local features and increasing robustness to shifts.
 
-ConvTranspose2d (or "deconvolution"): The inverse of standard convolution. It increases spatial resolution (upsampling) by generating larger outputs from smaller feature maps. It is often used in neural network decoders.
+ConvTranspose2d (or "deconvolution"): The inverse of standard convolution. 
+It increases spatial resolution (upsampling) by generating larger outputs from smaller feature maps. 
+It is often used in neural network decoders.
 
-Softmax: Normalizes a vector so that the sum of its components equals 1, applying exponentials and division. It transforms raw values (logits) into probabilities, usually along a specific dimension.
+Softmax: Normalizes a vector so that the sum of its components equals 1, applying exponentials and division. 
+It transforms raw values (logits) into probabilities, usually along a specific dimension.
 """
 
 

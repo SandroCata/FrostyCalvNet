@@ -5,13 +5,13 @@ import torch
 import cv2
 from torch.utils.data import Dataset
 import logging
-import time
+#import time
 from PIL import Image
-from torchvision import transforms
-from matplotlib import pyplot as plt
+#from torchvision import transforms
+#from matplotlib import pyplot as plt
 import torchvision
-import tormentor
-import warnings
+#import tormentor
+#import warnings
 
 
 class BasDataset(Dataset):

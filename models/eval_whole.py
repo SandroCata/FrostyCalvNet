@@ -8,9 +8,15 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from configs.config import cfg
 #from models.dice_loss import dice_coeff
 #from models.loss import make_one_hot
-import logging
+#import logging
 import glob
 import tempfile
+import cv2
+from PIL import Image
+import numpy as np
+from torchvision import transforms
+import sklearn.metrics
+from torchvision.utils import save_image
 
 # ``torchmetrics`` has renamed ``IoU`` to ``JaccardIndex`` in newer
 # versions. Import lazily so that the evaluation code can adapt to the
@@ -20,13 +26,6 @@ try:  # pragma: no cover - defensive import
     import torchmetrics  # type: ignore
 except Exception:  # pragma: no cover
     torchmetrics = None
-
-import cv2
-from PIL import Image
-import numpy as np
-from torchvision import transforms
-import sklearn.metrics
-from torchvision.utils import save_image
 
 
 def _get_iou_metric(num_classes, reduction=None):
@@ -165,7 +164,7 @@ def mask_to_image(pre_mask, save_path=None, suffix=None):
     return out
 
 
-
+#VALIDATION 
 def eval_net(net, loader, device):
     net.eval()
     mask_type = torch.float32 if net.n_classes <= 2 else torch.int64
@@ -184,11 +183,13 @@ def eval_net(net, loader, device):
         for batch in loader:
             imgs_target = batch['image_target']
             imgs_context = batch['image_context']
+            #DOUBT: true_masks_context missing. Why?
             true_masks_target = batch['mask_target']
             suffix = batch['suffix'][0]
 
             imgs_target = imgs_target.to(device=device, dtype=torch.float32)
             imgs_context = imgs_context.to(device=device, dtype=torch.float32)
+            #DOUBT: true_masks_context missing. Why?
             true_masks_target = true_masks_target.to(device=device, dtype=mask_type)
 
             with torch.no_grad():
