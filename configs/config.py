@@ -26,7 +26,7 @@ __C.scale = 1.0
 __C.batch_size = 16
 
 
-__C.load = True
+__C.load = False
 __C.seed = 123            
 
 

@@ -286,6 +286,9 @@ class BinaryDiceLoss(nn.Module):
             raise Exception('Unexpected reduction {}'.format(self.reduction))
 
 
+"""
+Multiclass wrapper around BinaryDiceLoss which requires one hot inputs and same predict tensor size
+"""
 class DiceLoss(nn.Module):
     """Dice loss, need one hot encode input
     Args:
@@ -297,17 +300,28 @@ class DiceLoss(nn.Module):
     Return:
         same as BinaryDiceLoss
     """
+
+    
     def __init__(self, weight=None, ignore_index=None, **kwargs):
         super(DiceLoss, self).__init__()
         self.kwargs = kwargs
         self.weight = weight
         self.ignore_index = ignore_index
 
+    
     def forward(self, predict, target):
         assert predict.shape == target.shape, 'predict & target shape do not match'
         dice = BinaryDiceLoss(**self.kwargs)
         total_loss = 0
+        """
+        Softmax on channels: normalizing output maps along classes' dimension
+        """
         predict = F.softmax(predict, dim=1)
+        """
+        for each channel compute BinaryDiceLoss between prediction and corresponding target.
+        if weights are given, check if their length is equal to number of classes and apply specific weight to the corresponding class loss;
+        sum up the current loss to the total one, then return the avg loss
+        """
         for i in range(target.shape[1]):
             if i != self.ignore_index:
                 dice_loss = dice(predict[:, i, :, :], target[:, i, :, :])

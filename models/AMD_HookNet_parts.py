@@ -26,6 +26,9 @@ It transforms raw values (logits) into probabilities, usually along a specific d
 
 
 
+"""
+Sequence of two 3x3 convolutions with BatchNorm2d and ReLU 
+"""
 class Conv_block(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, mid_channels=None, padding=1):
         super().__init__()
@@ -44,6 +47,9 @@ class Conv_block(nn.Module):
         return self.conv_block(x)
 
 
+"""
+Combination of pooling and convolution to downsample
+"""
 class Downsample(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3):
         super().__init__()
@@ -55,7 +61,9 @@ class Downsample(nn.Module):
     def forward(self, x):
         return self.downsample(x)
 
-
+"""
+Rebuilding the resolution with integration of skip connection 
+"""
 class Upsample(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3):
         super().__init__()
@@ -72,7 +80,11 @@ class Upsample(nn.Module):
         x = torch.cat((x, item_cropped), dim=1)
         return self.catconv(x)
 
-
+"""
+Evolved version of upsampling used in target branch to hook the context features with attention and to produce intermediate supervisions
+Self-Attention: Query, Key, Value
+Deep supervision: 1x1 convolution
+"""
 class T_Upsample(nn.Module):
     def __init__(self, in_channels, out_channels, n_filters, n_classes, i, kernel_size=3):
         super().__init__()
