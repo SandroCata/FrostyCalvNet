@@ -8,7 +8,7 @@ The study focuses on the application of Deep Learning techniques for the automat
 
 The objective of this thesis is to design, implement, and evaluate deep neural network architectures capable of accurately segmenting glacier front boundaries, in order to analyze the melting and retreat processes affecting various glaciers worldwide. The analysis spans a temporal range from 1995 to 2020, using SAR satellite images and geospatial data provided primarily by the CAFFEE dataset.
 
-By leveraging solid segmentation models (such as AMD-HookNet, Bayesian U-Net, and other convolutional and transformer-based networks) this project aims to provide both precise front delineation and an estimation of glacier evolution patterns over time. The ultimate goal is to produce a system that not only offers retrospective insights on glacier behavior, but that may also serve as a foundation for future applications in climate change monitoring, glaciology, and environmental risk assessment.
+By leveraging solid segmentation models (such as Calving_Fronts_and_Where_to_Find_Them, AMD-HookNet, Bayesian U-Net, and other convolutional and transformer-based networks) this project aims to provide both precise front delineation and an estimation of glacier evolution patterns over time. The ultimate goal is to produce a system that not only offers retrospective insights on glacier behavior, but that may also serve as a foundation for future applications in climate change monitoring, glaciology, and environmental risk assessment.
 
 
 ---
@@ -18,14 +18,14 @@ By leveraging solid segmentation models (such as AMD-HookNet, Bayesian U-Net, an
 ```bash
 FrostyCalvNet/
 │
-├── data/                  # CAFFEE Dataset download link
-├── preprocessing/         # Scripts to prepare data patches
-├── models/                # AMD-HookNet and possible variants
-├── notebooks/             # Jupyter experiments and visualizations
-├── results/               # Outputs, logs, metrics, plots
-├── configs/               # YAML/JSON config files for training
+├── data_processing/       # Pre and Postprocessing operations
+├── env/                   # Script to create and setup conda env
+├── gifs/                  # Animated images
+├── models/                # Neural networks to be used
 ├── utils/                 # References and Documentation
-├── main.py                # Entry point for training/inference
+├── train.py               # Entry point for training
+├── validate_or_test.py    # Entry point for validation\test
+├── requirements.txt       # Additional env requirements
 └── README.md
 ```
 
@@ -35,12 +35,14 @@ FrostyCalvNet/
 
 Most coherent and relevant Neural Networks: 
 
+- Calving_Fronts_and_Where_to_Find_Them,
 - AMD-HookNet,
 - Bayesian U-Net,
 - nnU-Net
 
 Related Papers:
 
+- Calving fronts and where to find them: a benchmark dataset and methodology for automatic glacier calving front extraction from synthetic aperture radar imagery
 - AMD-HookNet for Glacier Front Segmentation (Wu et al., 2023)
 - Bayesian U-Net for Glacier Segmentation in SAR Imagery
 - Globally Scalable Glacier Mapping by Deep Learning
@@ -49,7 +51,7 @@ Selected Dataset:
 
 - CAFFEE Dataset
 
-## 🚀 Step 2 — Reproducing AMD-HookNet on CAFFEE
+## 🚀 Step 2 — Reproducing Calving_Fronts_and_Where_to_Find_Them on CAFFEE
 
 Deep study of related paper and code, especially for:
 
@@ -58,24 +60,61 @@ Deep study of related paper and code, especially for:
 - Examining its results
 - Looking for improvements and original ideas to integrate
 
-### Step 2.1 - Data Preprocessing
+### Step 2.0 - Conda Environment Creation and Setup
 
- - From raw data, generating target e context images to get inputs for AMD Hooknet network.
- - Sequence of preprocessing process:
+Run the script `'/env/setup_conda_env.sh'` to create and prepare the conda environment.
 
-    train_valid_split.py – Step 0
+### Step 2.1 - Data Preparation
 
-      - Splits the dataset into train/validation with an 80/20 ratio, creating validation folders if missing and moving each SAR image along with its fronts and zones masks.
+Download data here: https://doi.org/10.1594/PANGAEA.940950
 
-    center_crop.py – Step 1
+And copy it to `/Benchmark_SAR_Glacier_Segmentation/data_raw`.
+Running the `data_processing/check_raw_data_is_correct.py` allows you to check that nothing broke during the download.
 
-      - Padding the images and masks so that their dimensions are multiples of 288 pixels, keeping the contents centered and uniform across all sets (train/valid/test).
+Next, run the `data_processing/data_preprocessing.py` script to preprocess the data. 
+This will split the training data into validation and training sets, as used in the paper. 
+If you prefer to use a new random val-train-split, 
+please delete `data_processing/data_splits/train_idx.txt` and `data_processing/data_splits/val_idx.txt`.
+Moreover, `data_processing/data_preprocessing.py` thickens the front labels and divides the images and labels into patches 
+and stores them in the new directory `data`.
 
-    Sliding_window_generate_dataset.py – Step 2
+### Step 2.2 - Model Training
 
-      - Applies a sliding window with a step of 288 and a patch of 576×576 pixels to generate tiles from already centered images. The process is repeated for training, validation, and testing.
-    
-    generate_target_context.py – Step 3
+---
 
-      - From the tiles, it produces target (central 288×288 crop) and context (576×576 window resized to 288×288) pairs for images and masks in all partitions of the dataset.
- 
+Run:
+
+    python3 train.py --target_masks "zones"
+
+or:
+
+    python3 train.py --target_masks "fronts"
+
+depending on which model you want to train.
+There are also some more command line arguments you can use.
+Run the following to see what you can alter:
+
+    python3 train.py -h
+
+### Step 2.3 - Validation and Testing
+
+---
+
+Use the `validate_or_test.py` script for both validation and testing. 
+The command line argument `--mode` determines whether the test or validation set is used.
+Other necessary command line arguments are:
+
+- *--target_masks*: Either 'fronts' or 'zones'.
+- *--run_number*: The model's run number of the checkpoint file you want to load. 
+  You can check the run number in the folder structure of the checkpoint (checkpoints/..._segmentation/run__?).
+- *--version_number*: The version number of the hparams file you want to load 
+  (the hparams file is needed to load the model). 
+  You can check the version number in the folder structure of the hparams file 
+  (tb_logs/..._segmentation/run__.../log/version_?).
+- *--checkpoint_file*:  The name of the checkpoint file you want to load. 
+  For front segmentation, choose the checkpoint file that has the lowest validation loss 
+  (you can see the validation loss in the name). 
+  For zone segmentation, choose the checkpoint file that has the highest validation metric (IoU) 
+  (you can see the validation metric in the name).
+  
+There is also available pretrained checkpoints that you can test at Zenodo (https://zenodo.org/record/6469519), simply adapt the command line arguments accordingly.
