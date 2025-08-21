@@ -16,7 +16,7 @@ echo === Aggiornamento pip
 python -m pip install --upgrade pip
 
 echo === Installazione PyTorch 1.9.0 + CUDA 11.1
-pip install "torch==1.9.0+cu111" -f https://download.pytorch.org/whl/torch_stable.html
+pip install "torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0" -f https://download.pytorch.org/whl/torch_stable.html
 
 echo === Blocco setuptools < 58
 pip install "setuptools<58"
