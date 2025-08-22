@@ -13,6 +13,7 @@ import torch
 import os
 from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+import builtins
 
 
 def main(hparams, run_number, running_mode):
@@ -154,17 +155,37 @@ if __name__ == '__main__':
     parser = Trainer.add_argparse_args(parser)
     hparams = parser.parse_args()
 
-    print(vars(hparams))
+    if hparams.target_masks == "zones":
+        log_dir = os.path.join('checkpoints', 'zones_segmentation', 'run_' + str(hparams.run_number))
+    else:
+        log_dir = os.path.join('checkpoints', 'fronts_segmentation', 'run_' + str(hparams.run_number))
+    os.makedirs(log_dir, exist_ok=True)
+    log_file_path = os.path.join(log_dir, "log.txt")
+    log_file = open(log_file_path, "w")
+    original_print = builtins.print
 
-    assert hparams.target_masks == "fronts" or hparams.target_masks == "zones", \
-        "Please set --target_masks correctly. Either 'fronts' or 'zones'."
-    assert hparams.training_mode == "training" or hparams.training_mode == "debugging" or hparams.training_mode == "batch_overfit", \
-        "Please set --training_mode correctly. Either 'training' or 'debugging' or 'batch_overfit'."
+    def print_and_log(*args, **kwargs):
+        original_print(*args, **kwargs)
+        original_print(*args, file=log_file, **kwargs)
+        log_file.flush()
 
-    start_save = time.time()
-    main(hparams, hparams.run_number, hparams.training_mode)
-    end_save = time.time()
-    print(f"Total time for training: {end_save - start_save}")
+    builtins.print = print_and_log
+
+    try:
+        print(vars(hparams))
+
+        assert hparams.target_masks == "fronts" or hparams.target_masks == "zones", \
+            "Please set --target_masks correctly. Either 'fronts' or 'zones'."
+        assert hparams.training_mode == "training" or hparams.training_mode == "debugging" or hparams.training_mode == "batch_overfit", \
+            "Please set --training_mode correctly. Either 'training' or 'debugging' or 'batch_overfit'."
+
+        start_save = time.time()
+        main(hparams, hparams.run_number, hparams.training_mode)
+        end_save = time.time()
+        print(f"Total time for training: {end_save - start_save}")
+    finally:
+        builtins.print = original_print
+        log_file.close()
 
     # run the following if you want to open tensorboard
     # tensorboard --logdir tb_logs
