@@ -68,15 +68,14 @@ Run the script `'/env/setup_conda_env.sh'` to create and prepare the conda envir
 
 Download data here: https://doi.org/10.1594/PANGAEA.940950
 
-And copy it to `/Benchmark_SAR_Glacier_Segmentation/data_raw`.
-Running the `data_processing/check_raw_data_is_correct.py` allows you to check that nothing broke during the download.
+And copy the content of the downloaded `/data_raw/CAFFE` into a folder named `/data_raw` in the parent directory of `/FrostyCalvNet` (beside of it).
+Run then the `data_processing/check_raw_data_is_correct.py`, so that you can check that nothing broke during the download.
 
 Next, run the `data_processing/data_preprocessing.py` script to preprocess the data. 
 This will split the training data into validation and training sets, as used in the paper. 
-If you prefer to use a new random val-train-split, 
-please delete `data_processing/data_splits/train_idx.txt` and `data_processing/data_splits/val_idx.txt`.
-Moreover, `data_processing/data_preprocessing.py` thickens the front labels and divides the images and labels into patches 
-and stores them in the new directory `data`.
+If you prefer to use a new random val-train-split, please delete `data_processing/data_splits/train_idx.txt` and `data_processing/data_splits/val_idx.txt`.
+Moreover, `data_processing/data_preprocessing.py` thickens the front labels and divides the images and labels into patches and stores them in the new directory `data`, which will be beside `/data_raw` and `/FrostyCalvNet`.
+A `/FrostyCalvNet/data_splts` folder will be created with two .txt file: `train_idx.txt` and `val_idx.txt`.
 
 ### Step 2.2 - Model Training
 
