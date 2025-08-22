@@ -631,9 +631,9 @@ if __name__ == "__main__":
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
     parser.add_argument('--checkpoint_file', default="-epoch=143-avg_metric_validation=0.90.ckpt",
                         help="The name of the checkpoint file you want to load.")
-    parser.add_argument('--data_raw_parent_dir', default=".",
+    parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")
-    parser.add_argument('--data_parent_dir', default=".",
+    parser.add_argument('--data_parent_dir', default="../",
                         help="Where the data directory lies, default: .")
     hparams = parser.parse_args()
 
