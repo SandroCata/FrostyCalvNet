@@ -30,19 +30,28 @@ class GlacierDataset(Dataset):
         # However, always use same shuffle so that it is reproducible
         if not os.path.exists(os.path.join("data_processing", "data_splits")):
             os.makedirs(os.path.join("data_processing", "data_splits"))
-        if not os.path.isfile(os.path.join("data_processing", "data_splits", "shuffle_" + mode + ".txt")):
+        shuffle_path = os.path.join("data_processing", "data_splits", "shuffle_" + mode + ".txt")
+        if not os.path.isfile(shuffle_path):
             shuffle = np.random.permutation(len(self.imgs))
-            with open(os.path.join("data_processing", "data_splits", "shuffle_" + mode + ".txt"), "wb") as fp:
+            with open(shuffle_path, "wb") as fp:
                 pickle.dump(shuffle, fp)
         else:
             # use already existing shuffle
-            with open(os.path.join("data_processing", "data_splits", "shuffle_" + mode + ".txt"), "rb") as fp:
-                shuffle = pickle.load(fp)
-                # if lengths do not match, we need to create a new permutation
+            with open(shuffle_path, "rb") as fp:
+                data = fp.read()
+            # some editors may prepend a UTF-8 BOM which breaks pickle.load
+            if data[:3] == b"\xef\xbb\xbf":
+                data = data[3:]
+            try:
+                shuffle = pickle.loads(data)
+                # if lengths do not match, create a new permutation
                 if len(shuffle) != len(self.imgs):
-                    shuffle = np.random.permutation(len(self.imgs))
-                    with open(os.path.join("data_processing", "data_splits", "shuffle_" + mode + ".txt"), "wb") as fp:
-                        pickle.dump(shuffle, fp)
+                    raise ValueError("Shuffle file has wrong length")
+            except Exception:
+                shuffle = np.random.permutation(len(self.imgs))
+                with open(shuffle_path, "wb") as fp:
+                    pickle.dump(shuffle, fp)
+                    
 
         self.imgs = np.array(self.imgs)
         self.labels = np.array(self.labels)
