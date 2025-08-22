@@ -15,6 +15,7 @@ from scipy.spatial import distance
 from sklearn.metrics import precision_score, recall_score, f1_score, jaccard_score
 import skimage
 import shutil
+import builtins
 
 
 def front_error(prediction, label):
@@ -687,4 +688,21 @@ if __name__ == "__main__":
     if not os.path.exists(visualizations_dir):
         os.makedirs(visualizations_dir)
 
-    main(hparams.mode, model, datamodule, patch_directory, complete_directory, complete_postprocessed_directory, visualizations_dir, data_raw_dir)
+    log_file_path = os.path.join(src, result_directory_name, hparams.target_masks,
+                                 "run_" + str(hparams.run_number), "log.txt")
+    log_file = open(log_file_path, "w")
+    original_print = builtins.print
+
+    def print_and_log(*args, **kwargs):
+        original_print(*args, **kwargs)
+        original_print(*args, file=log_file, **kwargs)
+        log_file.flush()
+
+    builtins.print = print_and_log
+
+    try:
+        main(hparams.mode, model, datamodule, patch_directory, complete_directory,
+             complete_postprocessed_directory, visualizations_dir, data_raw_dir)
+    finally:
+        builtins.print = original_print
+        log_file.close()
