@@ -182,7 +182,7 @@ if __name__ == '__main__':
         start_save = time.time()
         main(hparams, hparams.run_number, hparams.training_mode)
         end_save = time.time()
-        print(f"Total time for training: {end_save - start_save}")
+        print(f"Total time for training: {(end_save - start_save)/60:.2f} minutes")
     finally:
         builtins.print = original_print
         log_file.close()
