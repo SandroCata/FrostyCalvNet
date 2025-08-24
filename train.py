@@ -129,7 +129,7 @@ if __name__ == '__main__':
 
     parent_parser = ArgumentParser(add_help=False)
     # add PROGRAM level args
-    parent_parser.add_argument('--parent_dir', default=".",
+    parent_parser.add_argument('--parent_dir', default="../data/",
                                help="The directory in which the data directory lies. "
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",

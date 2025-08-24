@@ -3,6 +3,7 @@ import numpy as np
 import tormentor
 import torchvision
 
+# This file contains custom data augmentation classes and a class to chain them together
 
 class Compose(object):
     """

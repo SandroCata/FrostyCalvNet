@@ -5,6 +5,26 @@ import pytorch_lightning as pl
 import sys
 from .ASPP import ASPP
 
+# Model is a modified U-Net:
+
+# 1. Encoder (downsampling) path with 5 layers: it aims to capture global context by reducing spatial dimensions while increasing feature channels.
+# 2. Bottleneck with ASPP: it captures multi-scale information using atrous convolutions with different dilatio rates (1, 2, 4, 8), where `1` is nearest and `8` is furthest.
+# 3. Decoder (upsampling) path with 5 layers: it reconstructs the spatial dimensions while reducing feature channels.
+# 4. Skip connections: they connect corresponding layers in the encoder and decoder paths to preserve spatial information.
+# 5. Final 1x1 convolution: it maps the features to the desired number of output classes.
+# 6. Output: probability map for each class.
+
+# Elements of this U-Net:
+
+# Convolution: applies a filter (kernel) which slides over the image/feature map to exract local patterns (it computes local scalar products).
+# Batch Normalization: normalizes the output of a previous activation layer by subtracting the batch mean and dividing by the batch standard deviation.
+# Activation function: introduces non-linearity to the model, allowing it to learn complex patterns. Here, Leaky ReLU and ReLU are used.
+# leaky ReLU: allows a small, non-zero gradient when the unit is not active (negative input values). So -> f(x) = x if x > 0 else alpha * x, where alpha is a small constant (e.g., 0.01).
+# ReLU: sets all negative values to zero -> f(x) = max(0, x).
+# Max Pooling: reduces the spatial dimensions (height and width) of the input, retaining the most important features.
+# Interpolation (Upsampling): increases the spatial dimensions of the input, typically using methods like nearest-neighbor or bilinear interpolation.
+# DropOut: randomly sets a fraction of input units to 0 at each update during training time, which helps prevent overfitting.
+# Transposed Convolution (Deconvolution): used for upsampling, it learns to reconstruct the spatial dimensions of the input.
 
 class UNet(pl.LightningModule):
 

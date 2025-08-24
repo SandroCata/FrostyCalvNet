@@ -3,23 +3,11 @@ Predict the lines of glaciers in satellitar images and use the lines detected to
 1) Through Segmentation and Deep Learning, relying on solid neural networks like probabilistic or bayesian U-Net on SAT images or DeepLab and Mask R-CNN. 
 This could help also to get an estimation on the uncertainty of predictions.
 
-2) Temporal analysis (Monthly and Yearly or just Yearly)
+2) An idea is to combine CNN and Transformer model to improve generalization and precision (see "Towards Global Glacier Mapping with Deep Learning and Open Earth Observation Data" study) 
 
-3) Dataset could be taken from Copernicus (Sentinel-1 or Sentinel-2)
+3) Pre and Post elaboration of images to deal with different quality of images.
 
-4) An idea is to combine CNN and Transformer model to improve generalization and precision (see "Towards Global Glacier Mapping with Deep Learning and Open Earth Observation Data" study) 
-
-5) Pre and Post elaboration of images to deal with different quality of images.
-
-6) Integrate with auxiliary data like topographical, climate and in-site measurement to give a correlation to the glacier's changings.
-
-Sources:
-
-Models and architectures ->
-
-A) GlacierNet,
-
-B) GlaViTU
+4) Integrate with auxiliary data like topographical, climate and in-site measurement to give a correlation to the glacier's changings.
 
 Studies ->   
 

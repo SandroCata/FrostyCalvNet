@@ -7,7 +7,8 @@ from sklearn.model_selection import train_test_split
 import pickle
 import cv2
 
-
+#Step 3: Extract patches from source grayscale images (stride is the step with which the sliding window moves in vertical and horizontal direction)
+# Note that a (1,1) stride means that the patches overlap strongly whereas a (patch_size, patch_size) stride means that the patches do not overlap at all.
 def extract_grayscale_patches(img, patch_size_tuple, offset=(0, 0), stride=(1, 1)):
     """ Extracts (typically) overlapping regular patches from a grayscale image
     Changing the offset and stride parameters will result in images
@@ -51,7 +52,10 @@ def extract_grayscale_patches(img, patch_size_tuple, offset=(0, 0), stride=(1, 1
     patches = img[x.ravel(), y.ravel()].reshape((-1, patch_size_tuple[0], patch_size_tuple[1]))
     return patches, (x_coord, y_coord)
 
-
+#Step 2: Pad images and masks.
+# Padding is useful to ensure that the height and width of the image are multiples of the patch size (if overlap is 0)
+# or that (height - patch_size) is a multiple of (patch_size - overlap)
+# and (width - patch_size) is a multiple of (patch_size - overlap) (if overlap > 0)
 def pad_image_and_masks(image, patch_size_tuple, overlap):
     """
     Pads the image on bottom and right such that the height and width are both multiples of the patch size if the
@@ -73,7 +77,7 @@ def pad_image_and_masks(image, patch_size_tuple, overlap):
     img_pad[:len(image), :len(image[0])] = image
     return img_pad, bottom, right
 
-
+# Step 1: Thicken fronts (Through morphological dilation, each pixel with value 1 is replaced by a 5x5 square of pixels with value 1. This avoids the strong class imbalance between front and non-front pixels)
 def thicken_fronts(mask):
     """
     Dilate front label with a 5x5 kernel.
@@ -84,7 +88,7 @@ def thicken_fronts(mask):
     mask_line_pad = cv2.dilate(mask, kernel, iterations=1)
     return mask_line_pad
 
-
+#Step 4: Preprocess function
 def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
     """
     Perform pre-processing steps.
@@ -101,14 +105,14 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
         image = cv2.imread(file.__str__(), cv2.IMREAD_GRAYSCALE)
 
         # #####################################################################################################
-        # Alter images
+        # Alter images (Thickening fronts)
         # #####################################################################################################
         if modality_dir == "fronts":
             # Thicken the fronts
             image = thicken_fronts(image)
 
         # #####################################################################################################
-        # Pad sides such that patch extraction works smoothly
+        # Pad sides such that patch extraction works smoothly (Padding)
         # #####################################################################################################
         stride = (patch_size - overlap, patch_size - overlap)
         patch_size_tuple = (patch_size, patch_size)
@@ -116,7 +120,7 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
         image, bottom, right = pad_image_and_masks(image, patch_size_tuple=patch_size_tuple, overlap=overlap)
 
         # #####################################################################################################
-        # Extract Patches
+        # Extract Patches (Extracting)
         # #####################################################################################################
         patches_image, coords_image = extract_grayscale_patches(image, patch_size_tuple=patch_size_tuple, stride=stride)
         img_name = os.path.split(file)[1][:-4]
