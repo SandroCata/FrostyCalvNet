@@ -36,16 +36,18 @@ FrostyCalvNet/
 Most coherent and relevant Neural Networks: 
 
 - Calving_Fronts_and_Where_to_Find_Them,
+- Remote Sensing,
 - AMD-HookNet,
 - Bayesian U-Net,
-- nnU-Net
+- CALFIN.
 
 Related Papers:
 
 - Calving fronts and where to find them: a benchmark dataset and methodology for automatic glacier calving front extraction from synthetic aperture radar imagery
+- Remote Sensing - Detection of Glacier Calving Margins with Convolutional Neural Networks: A Case Study
 - AMD-HookNet for Glacier Front Segmentation (Wu et al., 2023)
 - Bayesian U-Net for Glacier Segmentation in SAR Imagery
-- Globally Scalable Glacier Mapping by Deep Learning
+- Calving Front Machine (CALFIN): glacial termini dataset and automated deep learning extraction method for Greenland, 1972-2019
 
 Selected Dataset: 
 
