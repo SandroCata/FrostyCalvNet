@@ -7,6 +7,18 @@ from torch.nn import functional as F
 # Paper: https://arxiv.org/pdf/1706.05587.pdf
 ########################################################################################################################
 
+# ASPP (Atrous Spatial Pyramid Pooling) concept
+
+""" It allows you to view the same feature map at multiple scales without losing resolution:
+
+It uses dilated convolutions (atrous) with different dilations (small → details; large → broad context);
+
+It also adds a global pooling branch for the "scene" context;
+
+It concatenates all the branches and recomposes them with a final 1 x 1.
+
+Effect: the model "looks near and far" at the same point, useful because the front can appear thin, fragmented, or very curved at different scales. """
+
 class ASPPConv(nn.Sequential):
     def __init__(self, in_channels, out_channels, dilation):
         modules = [
