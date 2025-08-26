@@ -77,6 +77,12 @@ class FrontUNet(UNet):
             self.log('avg_metric_validation', avg_iou)
             self.log('avg_iou_front_validation', avg_iou_front)
             self.log('avg_iou_background_validation', avg_iou_background)
+        metrics = {
+            "IoU": avg_iou,
+            "IoU Front": avg_iou_front,
+            "IoU Background": avg_iou_background,
+        }
+        return metrics
 
     def class_wise_iou(self, y_hat, y):
         ious = []

@@ -43,6 +43,14 @@ class ZonesUNet(UNet):
             self.log('avg_iou_stone_validation', avg_iou_stone)
             self.log('avg_iou_glacier_validation', avg_iou_glacier)
             self.log('avg_iou_ocean_validation', avg_iou_ocean)
+        metrics = {
+            "IoU": avg_iou,
+            "IoU NA Area": avg_iou_na,
+            "IoU Stone": avg_iou_stone,
+            "IoU Glacier": avg_iou_glacier,
+            "IoU Ocean and Ice Melange": avg_iou_ocean,
+        }
+        return metrics
 
     def class_wise_iou(self, y_hat, y):
         ious = []
