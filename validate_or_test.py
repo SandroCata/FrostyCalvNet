@@ -4,7 +4,11 @@ from models.front_segmentation_model import FrontUNet
 from data_processing.glacier_zones_data import GlacierZonesDataModule
 from data_processing.glacier_front_data import GlacierFrontDataModule
 from data_processing.data_postprocessing import reconstruct_from_patches_and_binarize
-from data_processing.data_postprocessing import postprocess_zone_segmenation, postprocess_front_segmenation, extract_front_from_zones
+from data_processing.data_postprocessing import (
+    postprocess_zone_segmenation,
+    postprocess_front_segmenation,  # Commented out to disable front thinning
+    extract_front_from_zones,
+)
 import os
 import pickle
 import torch

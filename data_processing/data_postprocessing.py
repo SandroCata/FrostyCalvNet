@@ -7,10 +7,13 @@ from einops import rearrange
 from scipy.ndimage.filters import gaussian_filter
 import skimage.measure
 import skimage.color
+
+# Commenting out thickening-related imports
+"""
 from skimage.morphology import skeletonize
 from fil_finder import FilFinder2D
 import astropy.units as u
-
+"""
 
 
 """
@@ -300,11 +303,12 @@ def extract_front_from_zones(zone_mask, front_length_threshold):
 
 def postprocess_front_segmenation(complete_predicted_mask, threshold_front_length):
     """
-    Post-process the front segmentation by skeletonization, filament extraction, and deletion of too short fronts
-    :param complete_predicted_mask: front segmentation prediction
-    :param threshold_front_length: Threshold for deletion of too short front predictions
-    :return: the post-processed front prediction
-    """
+    
+    #Post-process the front segmentation by skeletonization, filament extraction, and deletion of too short fronts
+    #:param complete_predicted_mask: front segmentation prediction
+    #:param threshold_front_length: Threshold for deletion of too short front predictions
+    #:return: the post-processed front prediction
+    
     if len(np.unique(complete_predicted_mask)) == 1:
         print(f"No front predicted {np.unique(complete_predicted_mask)}")
         return complete_predicted_mask
@@ -329,3 +333,7 @@ def postprocess_front_segmenation(complete_predicted_mask, threshold_front_lengt
         else:
             skeleton_longpaths[labeled_skeleton_longpaths == cluster_label] = 1
     return skeleton_longpaths
+    """
+
+    """Placeholder function as thickening-based post-processing is disabled."""
+    return complete_predicted_mask
