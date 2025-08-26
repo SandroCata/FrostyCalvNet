@@ -119,7 +119,7 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
         print(file)
         image = cv2.imread(file.__str__(), cv2.IMREAD_GRAYSCALE)
 
-        #Commenting this to try traing without thickening fronts
+        #Commenting this to try training without thickening fronts
         """
         # #####################################################################################################
         # Alter images (Thickening fronts)
