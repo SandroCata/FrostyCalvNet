@@ -162,13 +162,13 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=150, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=20, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "
                                                                        "temporary.ckpt if one is available for this "
                                                                        "run.")
-    parent_parser.add_argument('--run_number', type=int, default=5,
+    parent_parser.add_argument('--run_number', type=int, default=0,
                                help="The number how often this model was already trained. "
                                     "If you run train.py twice with the same run_number, "
                                     "the second run will pick up training the first model from the temporary.ckpt.")
