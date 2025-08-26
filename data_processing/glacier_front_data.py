@@ -3,15 +3,21 @@ from data_processing.glacier_data import GlacierDataset
 import torch
 from torchvision.transforms import functional as F
 import numpy as np
+import os
+import cv2
 
 
 class ToTensorFront(object):
-    def __call__(self, image, target):
+    def __call__(self, image, target_front, target_near):
         image = F.to_tensor(image)
-        target = torch.as_tensor(np.array(target))
+        front = torch.as_tensor(np.array(target_front))
+        near = torch.as_tensor(np.array(target_near))
         # value for front=255, background=0
-        target[target == 255] = 1
-        target[target == 0] = 0
+        front[front == 255] = 1
+        front[front == 0] = 0
+        near[near == 255] = 1
+        near[near == 0] = 0
+        target = torch.stack([front, near])
         # class ids for front=1, background=0
         return image, target
 
@@ -27,11 +33,32 @@ class GlacierFrontDataset(GlacierDataset):
                                                   noise=noise,
                                                   rotate=rotate,
                                                   flip=flip)
+        
+        # path to near-front masks
+        self.near_targets_path = os.path.join(parent_dir, "data", "near_fronts", mode)
 
     def custom_to_tensor(self, image, target):
+        mask_front, mask_near = target
         to_tensor = ToTensorFront()
-        image, mask = to_tensor(image=image, target=target)
+        image, mask = to_tensor(image=image, target_front=mask_front, target_near=mask_near)
         return image, mask
+    
+    def __getitem__(self, idx):
+        img_name = self.imgs[idx]
+        label_name = self.labels[idx]
+        assert img_name.split("__")[0] == label_name.split("__")[0][:-6], "image and label name don't match. Image name: " + img_name + ". Label name: " + label_name
+        assert img_name.split("__")[1] == label_name.split("__")[1], "image and label name don't match. Image name: " + img_name + ". Label name: " + label_name
+        image = cv2.imread(os.path.join(self.images_path, img_name).__str__(), cv2.IMREAD_GRAYSCALE)
+        mask_front_path = os.path.join(self.targets_path, label_name).__str__()
+        mask_near_path = os.path.join(self.near_targets_path, label_name).__str__()
+        mask_front = cv2.imread(mask_front_path, cv2.IMREAD_GRAYSCALE)
+        mask_near = cv2.imread(mask_near_path, cv2.IMREAD_GRAYSCALE)
+        if mask_front is None:
+            raise FileNotFoundError(f"Front mask not found: {mask_front_path}")
+        if mask_near is None:
+            raise FileNotFoundError(f"Near-front mask not found: {mask_near_path}")
+        x, y = self.transform(image, (mask_front, mask_near))
+        return x, y, img_name, label_name
 
 
 class GlacierFrontDataModule(GlacierDataModule):

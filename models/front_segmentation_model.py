@@ -2,7 +2,7 @@ import torch.nn as nn
 from models.ParentUNet import UNet
 from scipy.ndimage.morphology import distance_transform_edt as edt
 import torch
-import torchmetrics
+#import torchmetrics
 from einops import rearrange
 import numpy as np
 import cv2
@@ -45,12 +45,14 @@ class DistanceMapBCE(nn.Module):
 class FrontUNet(UNet):
 
     def __init__(self, hparams):
-        # Front, Background -> binary hence one output channel (=n_classes) is sufficient
-        # for IoU num_classes=2, as we want to differentiate between background and foreground IoU
-        super().__init__(hparams=hparams, metric=torchmetrics.IoU(num_classes=2, reduction="none", absent_score=1.0), n_classes=1)
+        
+        super().__init__(hparams=hparams, metric=None, n_classes=2)
         self.w = hparams["w"]
         self.k = hparams["k"]
         self.relax = hparams["relax"]
+
+    def adapt_mask(self, y):
+        return y.type(torch.float32)
 
     def make_batch_dictionary(self, loss, metric, name_of_loss):
         """ Give batch_dictionary corresponding to the number of metrics for front segmentation """
@@ -58,45 +60,52 @@ class FrontUNet(UNet):
             # REQUIRED: It is required for us to return "loss"
             name_of_loss: loss,
             # info to be used at epoch end
-            "IoU": metric[0],
-            "IoU Front": metric[2],
-            "IoU Background": metric[1],
+            "IoU": (metric[0] + metric[1]) / 2,
+            "IoU Front": metric[0],
+            "IoU Near": metric[1],
         }
         return batch_dictionary
 
     def log_metric(self, outputs, train_or_val_or_test):
         # calculating average metric
-        avg_iou = torch.stack([x["IoU"] for x in outputs]).mean()
         avg_iou_front = torch.stack([x["IoU Front"] for x in outputs]).mean()
-        avg_iou_background = torch.stack([x["IoU Background"] for x in outputs]).mean()
+        avg_iou_near = torch.stack([x["IoU Near"] for x in outputs]).mean()
+        avg_iou = (avg_iou_front + avg_iou_near) / 2
         # logging using tensorboard logger
         self.logger.experiment.add_scalar("IoUs/" + train_or_val_or_test + "/IoU", avg_iou, self.current_epoch)
         self.logger.experiment.add_scalar("IoUs/" + train_or_val_or_test + "/IoU_Front", avg_iou_front, self.current_epoch)
-        self.logger.experiment.add_scalar("IoUs/" + train_or_val_or_test + "/IoU_Background", avg_iou_background, self.current_epoch)
+        self.logger.experiment.add_scalar("IoUs/" + train_or_val_or_test + "/IoU_Near", avg_iou_near, self.current_epoch)
         if train_or_val_or_test == "Val":
             self.log('avg_metric_validation', avg_iou)
             self.log('avg_iou_front_validation', avg_iou_front)
-            self.log('avg_iou_background_validation', avg_iou_background)
+            self.log('avg_iou_near_validation', avg_iou_near)
         metrics = {
             "IoU": avg_iou,
             "IoU Front": avg_iou_front,
-            "IoU Background": avg_iou_background,
+            "IoU Near": avg_iou_near,
         }
         return metrics
+    
+
+    def _single_iou(self, pred, target):
+        pred = (pred > 0).float()
+        target = target.float()
+        intersection = (pred * target).sum(dim=(1, 2))
+        union = ((pred + target) > 0).float().sum(dim=(1, 2))
+        return (intersection / (union + 1e-6)).mean()
 
     def class_wise_iou(self, y_hat, y):
-        ious = []
-        classwise_ious = self.metric(y_hat, y.type(torch.long))
-        ious.append(torch.mean(classwise_ious))
-        for i in classwise_ious:
-            ious.append(i)
-        return ious
+        front_iou = self._single_iou(y_hat[:, 0], y[:, 0])
+        near_iou = self._single_iou(y_hat[:, 1], y[:, 1])
+        return torch.stack([front_iou, near_iou])
 
     def calc_loss(self, y_hat, y):
         y = self.adapt_mask(y)
         criterion = DistanceMapBCE(self.device, w=self.w, k=self.k, relax=self.relax)
-        loss = criterion(y_hat, y)
-        return loss, self.class_wise_iou(torch.greater_equal(y_hat, 0), y)
+        loss_front = criterion(y_hat[:, 0], y[:, 0])
+        loss_near = criterion(y_hat[:, 1], y[:, 1])
+        loss = (loss_front + loss_near) / 2
+        return loss, self.class_wise_iou(y_hat, y)
 
     @staticmethod
     def add_model_specific_args(parent_parser):

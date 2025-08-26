@@ -87,8 +87,11 @@ class GlacierDataset(Dataset):
                 mask = torchvision.transforms.functional.hflip(mask)
             if np.random.random() >= (1 - self.rotate):
                 rot = Rotate()
-                image, mask = rot(image=image, target=mask.unsqueeze(0))
-                mask = mask.squeeze(0)
+                if mask.ndim == 2:
+                    image, mask = rot(image=image, target=mask.unsqueeze(0))
+                    mask = mask.squeeze(0)
+                else:
+                    image, mask = rot(image=image, target=mask)
             if np.random.random() >= (1 - self.bright):
                 bright = Bright()
                 image, mask = bright(image=image, target=mask)
