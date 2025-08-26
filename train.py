@@ -16,7 +16,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import builtins
 
 
-def main(hparams, run_number, running_mode, load_from_last_checkpoint=False):
+def main(hparams, run_number, running_mode):
     if hparams.target_masks == "zones":
         checkpoint_dir = os.path.join('checkpoints', 'zones_segmentation', 'run_' + str(run_number))
         tb_logs_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(run_number))
@@ -43,24 +43,10 @@ def main(hparams, run_number, running_mode, load_from_last_checkpoint=False):
     logger = TensorBoardLogger(tb_logs_dir, name="log", default_hp_metric=False)
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
-    resume_ckpt = None
-    if load_from_last_checkpoint and os.path.isdir(checkpoint_dir):
-        ckpt_files = [f for f in os.listdir(checkpoint_dir) if f.endswith('.ckpt')]
-        if ckpt_files:
-            resume_ckpt = os.path.join(checkpoint_dir, max(ckpt_files, key=lambda f: os.path.getmtime(os.path.join(checkpoint_dir, f))))
-            print(f"Loading from last checkpoint: {resume_ckpt}")
-
-    if resume_ckpt is not None:
-        trainer = Trainer(resume_from_checkpoint=resume_ckpt,
-                          callbacks=[early_stop_callback, checkpoint_callback, lr_monitor],
-                          deterministic=True,
-                          gpus=1,  # Train on gpu
-                          gradient_clip_val=clip_norm,
-                          logger=logger,
-                          max_epochs=hparams.epochs)
-    elif os.path.isfile(os.path.join(checkpoint_dir, "temporary.ckpt")):
+    # if we have already trained this model take up the training at the last checkpoint
+    if os.path.isfile(checkpoint_dir + "temporary.ckpt"):
         print("Taking up the training where it was left (temporary checkpoint)")
-        trainer = Trainer(resume_from_checkpoint=os.path.join(checkpoint_dir, "temporary.ckpt"),
+        trainer = Trainer(resume_from_checkpoint=checkpoint_dir + "temporary.ckpt",
                           callbacks=[early_stop_callback, checkpoint_callback, lr_monitor],
                           deterministic=True,
                           gpus=1,  # Train on gpu
@@ -159,8 +145,6 @@ if __name__ == '__main__':
                                     "the second run will pick up training the first model from the temporary.ckpt.")
     parent_parser.add_argument('--target_masks', default="zones", help="Either 'fronts' or 'zones'. "
                                                                         "This decides which model will be trained.")
-    parent_parser.add_argument('--load_from_last_checkpoint', default=False, type=lambda x: (str(x).lower() == 'true'),
-                               help="If true, load the most recent checkpoint from the highest run number")
 
     tmp = parent_parser.parse_args()
     if tmp.target_masks == "fronts":
@@ -169,22 +153,6 @@ if __name__ == '__main__':
         parser = ZonesUNet.add_model_specific_args(parent_parser)
     parser = Trainer.add_argparse_args(parser)
     hparams = parser.parse_args()
-
-    if hparams.load_from_last_checkpoint:
-        if hparams.target_masks == "zones":
-            base_dir = os.path.join('checkpoints', 'zones_segmentation')
-        else:
-            base_dir = os.path.join('checkpoints', 'fronts_segmentation')
-        if os.path.isdir(base_dir):
-            runs = [d for d in os.listdir(base_dir) if d.startswith('run_')]
-            if runs:
-                hparams.run_number = max(int(r.split('_')[1]) for r in runs)
-            else:
-                print("No previous runs found, starting with run_number 0")
-                hparams.run_number = 0
-        else:
-            print("Checkpoint directory not found, starting with run_number 0")
-            hparams.run_number = 0
 
     if hparams.target_masks == "zones":
         log_dir = os.path.join('checkpoints', 'zones_segmentation', 'run_' + str(hparams.run_number))
@@ -211,7 +179,7 @@ if __name__ == '__main__':
             "Please set --training_mode correctly. Either 'training' or 'debugging' or 'batch_overfit'."
 
         start_save = time.time()
-        main(hparams, hparams.run_number, hparams.training_mode, hparams.load_from_last_checkpoint)
+        main(hparams, hparams.run_number, hparams.training_mode)
         end_save = time.time()
         print(f"Total time for training: {(end_save - start_save)/60:.2f} minutes")
     finally:
