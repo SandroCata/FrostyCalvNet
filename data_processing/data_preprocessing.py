@@ -97,7 +97,8 @@ def highlight_near_fronts(mask):
     #Start from thickened fronts and make a differenece between the thickened and the original ground truth (second branch, since first branch is just the original)
     
     mask_line_pad = thicken_fronts(mask)
-    mask_highlight = mask_line_pad - mask
+    mask_highlight = cv2.subtract(mask_line_pad, mask)
+    mask_highlight[mask_highlight > 0] = 255
     return mask_highlight
 
 #Step 4: Preprocess function
@@ -166,7 +167,7 @@ def main(raw_data_dir, patch_size, overlap, overlap_test, overlap_val):
     """
     parent_dir = os.path.dirname(os.getcwd())
     threads = []
-    for modality_dir in ["sar_images", "zones", "fronts", "near_fronts"]:
+    for modality_dir in ["sar_images", "fronts", "near_fronts"]:
         if not os.path.exists(os.path.join(parent_dir, "data", modality_dir)):
             os.makedirs(os.path.join(parent_dir, "data", modality_dir))
         if not os.path.exists(os.path.join(parent_dir, "data", modality_dir, "val")):
