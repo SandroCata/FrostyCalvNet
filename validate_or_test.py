@@ -625,7 +625,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(add_help=False)
     parser.add_argument('--mode', default="validate", help="Either 'validate' or 'test'.")
-    parser.add_argument('--target_masks', default="zones", help="Either 'fronts' or 'zones'.")
+    parser.add_argument('--target_masks', default="fronts", help="Either 'fronts' or 'zones'.")
     parser.add_argument('--run_number', default=0,
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"

@@ -22,7 +22,7 @@ def main(hparams, run_number, running_mode, load_from_last_checkpoint=False):
         tb_logs_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(run_number))
         checkpoint_callback = ModelCheckpoint(monitor='avg_metric_validation',
                                               dirpath=checkpoint_dir,
-                                              filename='-{epoch:02d}-{avg_metric_validation:.2f}',
+                                              filename='{epoch:02d}-{avg_metric_validation:.2f}',
                                               mode='max',  # Here: the higher the IoU the better
                                               save_top_k=1)
         early_stop_callback = EarlyStopping(monitor="avg_metric_validation", patience=30,
@@ -33,7 +33,7 @@ def main(hparams, run_number, running_mode, load_from_last_checkpoint=False):
         tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(run_number))
         checkpoint_callback = ModelCheckpoint(monitor='avg_loss_validation',
                                               dirpath=checkpoint_dir,
-                                              filename='-{epoch:02d}-{avg_loss_validation:.2f}',
+                                              filename='{epoch:02d}-{avg_loss_validation:.2f}',
                                               mode='min',  # Here: the lower the loss the better
                                               save_top_k=1)
         early_stop_callback = EarlyStopping(monitor="avg_loss_validation", patience=30,
@@ -131,24 +131,9 @@ def main(hparams, run_number, running_mode, load_from_last_checkpoint=False):
     trainer.fit(model, datamodule=datamodule)
 
     if running_mode == "training":
-        print("Calculating final training metrics on the full training set")
-        model.eval()
-        device = model.device
-        train_outputs = []
-        with torch.no_grad():
-            for batch in datamodule.train_dataloader():
-                x, y, x_name, y_names = batch
-                batch_gpu = (x.to(device), y.to(device), x_name, y_names)
-                y_hat = model.give_prediction_for_batch(batch_gpu)
-                loss, metric = model.calc_loss(y_hat, batch_gpu[1])
-                train_outputs.append(model.make_batch_dictionary(loss, metric, "loss"))
-        final_loss = torch.stack([x['loss'] for x in train_outputs]).mean()
-        final_metrics = model.log_metric(train_outputs, "Train")
-        metrics_str = ", ".join([f"{k}: {v:.4f}" for k, v in final_metrics.items()])
-        print(f"Final training metrics - Loss: {final_loss:.4f}, {metrics_str}")
-        if os.path.isfile(os.path.join(checkpoint_dir, "temporary.ckpt")):
-            os.remove(os.path.join(checkpoint_dir, "temporary.ckpt"))
-        trainer.save_checkpoint(filepath=os.path.join(checkpoint_dir, "temporary.ckpt"))
+        if os.path.isfile(checkpoint_dir + "temporary.ckpt"):
+            os.remove(checkpoint_dir + "temporary.ckpt")
+        trainer.save_checkpoint(filepath=checkpoint_dir + "temporary.ckpt")
 
 
 if __name__ == '__main__':
