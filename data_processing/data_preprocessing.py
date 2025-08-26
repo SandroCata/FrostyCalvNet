@@ -80,6 +80,7 @@ def pad_image_and_masks(image, patch_size_tuple, overlap):
 # Step 1: Thicken fronts (Through morphological dilation, each pixel with value 1 is replaced by a 5x5 square of pixels with value 1. This avoids the strong class imbalance between front and non-front pixels)
 def thicken_fronts(mask):
     """
+    Auxiliary function to thicken fronts
     Dilate front label with a 5x5 kernel.
     :param mask: the front label
     :return: the dilated front label
@@ -88,6 +89,20 @@ def thicken_fronts(mask):
     mask_line_pad = cv2.dilate(mask, kernel, iterations=1)
     return mask_line_pad
 
+
+"""
+# Step 1.2: Thicken fronts (Through morphological dilation, each pixel with value 1 is replaced by a 5x5 square of pixels with value 1. This avoids the strong class imbalance between front and non-front pixels)
+def highlight_near_fronts(mask):
+    
+    #Start from thickened fronts and make a differenece between the thickened and the original ground truth (second branch, since first branch is just the original)
+    
+    kernel = np.ones((5, 5), np.uint8)
+    mask_line_pad = cv2.dilate(mask, kernel, iterations=1)
+    mask_highlight = mask_line_pad - mask
+    return mask_highlight
+
+    
+"""
 #Step 4: Preprocess function
 def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
     """
@@ -104,13 +119,15 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
         print(file)
         image = cv2.imread(file.__str__(), cv2.IMREAD_GRAYSCALE)
 
+        #Commenting this to try traing without thickening fronts
+        """
         # #####################################################################################################
         # Alter images (Thickening fronts)
         # #####################################################################################################
         if modality_dir == "fronts":
             # Thicken the fronts
             image = thicken_fronts(image)
-
+        """
         # #####################################################################################################
         # Pad sides such that patch extraction works smoothly (Padding)
         # #####################################################################################################

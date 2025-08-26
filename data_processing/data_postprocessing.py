@@ -11,6 +11,15 @@ from skimage.morphology import skeletonize
 from fil_finder import FilFinder2D
 import astropy.units as u
 
+
+
+"""
+FUTURE IDEA (not to be implemented yet)
+Postprocessing needs to be changed in the sense that dethickened fronts are not needed anymore.
+Postprocessing for the second processing needs to display the two lines in-between the front line.
+"""
+
+
 # ################################################################################################################
 # POSTPROCESSING PUTS THE PATCHES TOGETHER, SUBSTRACTS THE PADDING
 # AND CHOOSES THE CLASS WITH HIGHEST PROBABILITY AS PREDICTION.
