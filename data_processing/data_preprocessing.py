@@ -77,30 +77,6 @@ def pad_image_and_masks(image, patch_size_tuple, overlap):
     img_pad[:len(image), :len(image[0])] = image
     return img_pad, bottom, right
 
-# Step 1: Thicken fronts (Through morphological dilation, each pixel with value 1 is replaced by a 5x5 square of pixels with value 1. This avoids the strong class imbalance between front and non-front pixels)
-def thicken_fronts(mask):
-    """
-    Auxiliary function to thicken fronts
-    Dilate front label with a 5x5 kernel.
-    :param mask: the front label
-    :return: the dilated front label
-    """
-    kernel = np.ones((3, 3), np.uint8)
-    mask_line_pad = cv2.dilate(mask, kernel, iterations=1)
-    return mask_line_pad
-
-
-
-# Step 1.2: Thicken fronts (Through morphological dilation, each pixel with value 1 is replaced by a 5x5 square of pixels with value 1. This avoids the strong class imbalance between front and non-front pixels)
-def highlight_near_fronts(mask):
-    
-    #Start from thickened fronts and make a differenece between the thickened and the original ground truth (second branch, since first branch is just the original)
-    
-    mask_line_pad = thicken_fronts(mask)
-    mask_highlight = cv2.subtract(mask_line_pad, mask)
-    mask_highlight[mask_highlight > 0] = 255
-    return mask_highlight
-
 #Step 4: Preprocess function
 def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
     """
@@ -118,18 +94,6 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
         print(file)
         image = cv2.imread(file.__str__(), cv2.IMREAD_GRAYSCALE)
 
-        #Commenting this to try training without thickening fronts
-        """
-        # #####################################################################################################
-        # Alter images depending on modality (Thickening fronts)
-        # #####################################################################################################
-        if modality_dir == "fronts":
-            # Thicken the fronts
-            image = thicken_fronts(image)
-        """
-        if modality_dir == "near_fronts":
-            # create mask of near-front pixels
-            image = highlight_near_fronts(image)
         # #####################################################################################################
         # Pad sides such that patch extraction works smoothly (Padding)
         # #####################################################################################################
@@ -177,8 +141,7 @@ def main(raw_data_dir, patch_size, overlap, overlap_test, overlap_val):
             if not os.path.exists(os.path.join(parent_dir, "data", modality_dir, data_split_dir)):
                 os.makedirs(os.path.join(parent_dir, "data", modality_dir, data_split_dir))
 
-            raw_modality = "fronts" if modality_dir == "near_fronts" else modality_dir
-            folder = sorted(Path(os.path.join(parent_dir, raw_data_dir, raw_modality, data_split_dir)).rglob('*.png'))
+            folder = sorted(Path(os.path.join(parent_dir, raw_data_dir, modality_dir, data_split_dir)).rglob('*.png'))
             files = [x for x in folder]
 
             if data_split_dir == "train":

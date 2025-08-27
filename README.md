@@ -73,10 +73,13 @@ Download data here: https://doi.org/10.1594/PANGAEA.940950
 And copy the content of the downloaded `/data_raw/CAFFE` into a folder named `/data_raw` in the parent directory of `/FrostyCalvNet` (beside of it).
 Run then the `data_processing/check_raw_data_is_correct.py`, so that you can check that nothing broke during the download.
 
-Next, run the `data_processing/data_preprocessing.py` script to preprocess the data. 
-This will split the training data into validation and training sets, as used in the paper. 
+Next, generate the near-front masks by running `data_processing/generate_near_front.py`.
+This script reads the front labels in `data_raw/fronts` and stores the derived masks in `data_raw/near_fronts`.
+
+Finally, run the `data_processing/data_preprocessing.py` script to preprocess the data.
+This will split the training data into validation and training sets, as used in the paper, and divide the images and labels into patches, storing them in the new directory `data`, which will be beside `/data_raw` and `/FrostyCalvNet`. 
 If you prefer to use a new random val-train-split, please delete `data_processing/data_splits/train_idx.txt` and `data_processing/data_splits/val_idx.txt`.
-Moreover, `data_processing/data_preprocessing.py` thickens the front labels and divides the images and labels into patches and stores them in the new directory `data`, which will be beside `/data_raw` and `/FrostyCalvNet`.
+
 A `/FrostyCalvNet/data_splts` folder will be created with two .txt file: `train_idx.txt` and `val_idx.txt`.
 
 ### Step 2.2 - Model Training
