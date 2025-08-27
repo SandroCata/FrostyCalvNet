@@ -14,9 +14,10 @@ def is_empty(mask_path: Path) -> bool:
 
 def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
     """Remove patches with empty ground-truth masks for a given split."""
-    sar_dir = data_dir / "sar_images" / split
-    front_dir = data_dir / "fronts" / split
-    near_dir = data_dir / "near_fronts" / split
+    parent_dir = os.path.dirname(os.getcwd())
+    sar_dir = parent_dir / data_dir / "sar_images" / split
+    front_dir = parent_dir / data_dir / "fronts" / split
+    near_dir = parent_dir / data_dir / "near_fronts" / split
     if not near_dir.exists():
         print(f"No near_fronts directory for split '{split}', skipping")
         return
@@ -48,7 +49,7 @@ def main(data_dir: str, keep_ratio: float) -> None:
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Remove patches with empty ground-truth masks")
-    parser.add_argument("--data_dir", default="../../data", help="Directory with processed patches")
+    parser.add_argument("--data_dir", default="data", help="Directory with processed patches")
     parser.add_argument(
         "--keep_ratio",
         type=float,
