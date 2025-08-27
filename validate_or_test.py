@@ -109,6 +109,8 @@ def get_matching_out_of_folder(file_name, folder):
     :param folder: the folder which is to be searched
     :return: the file name in the folder that starts with the parameter file_name (minus .png)
     """
+    folder = folder.replace("\\", os.sep)
+    folder = os.path.normpath(folder)
     files = os.listdir(folder)
     pattern_name = os.path.split(file_name)[1][:-4]
     pattern_name = re.sub(r'_(front|near)$', '', pattern_name)
