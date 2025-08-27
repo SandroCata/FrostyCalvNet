@@ -113,11 +113,31 @@ class GlacierDataset(Dataset):
     def __getitem__(self, idx):
         img_name = self.imgs[idx]
         label_name = self.labels[idx]
-        # Assert that image and label name match
-        assert img_name.split("__")[0] == label_name.split("__")[0][:-6], "image and label name don't match. Image name: " + img_name + ". Label name: " + label_name
-        assert img_name.split("__")[1] == label_name.split("__")[1], "image and label name don't match. Image name: " + img_name + ". Label name: " + label_name
-        image = cv2.imread(os.path.join(self.images_path, img_name).__str__(), cv2.IMREAD_GRAYSCALE)
-        mask = cv2.imread(os.path.join(self.targets_path, label_name).__str__(), cv2.IMREAD_GRAYSCALE)
+        # Assert that image and label name match. Labels are expected to contain a
+        # suffix identifying the target (e.g. ``_front`` or ``_zones``) directly
+        # before the file extension. Historically, the comparison attempted to
+        # strip this suffix by removing the last six characters of the first
+        # token which broke when the suffix was appended at the end of the file
+        # name (``..._front.png``). Here we explicitly remove the suffix and
+        # compare the full file names to avoid mismatches. Besides ``_front`` and
+        # ``_zones`` we also generate masks with a ``_near_front`` suffix for the
+        # auxiliary near-front task. Strip any of these markers before comparing.
+        label_base = (
+            label_name.replace("_near_fronts", "")
+            .replace("_near_front", "")
+            .replace("_front", "")
+            .replace("_zones", "")
+        )
+        assert (
+            img_name == label_base
+        ), f"image and label name don't match. Image name: {img_name}. Label name: {label_name}"
+
+        image = cv2.imread(
+            os.path.join(self.images_path, img_name).__str__(), cv2.IMREAD_GRAYSCALE
+        )
+        mask = cv2.imread(
+            os.path.join(self.targets_path, label_name).__str__(), cv2.IMREAD_GRAYSCALE
+        )
         x, y = self.transform(image, mask)
         return x, y, img_name, label_name
 

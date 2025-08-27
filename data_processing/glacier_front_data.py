@@ -46,11 +46,21 @@ class GlacierFrontDataset(GlacierDataset):
     def __getitem__(self, idx):
         img_name = self.imgs[idx]
         label_name = self.labels[idx]
-        assert img_name.split("__")[0] == label_name.split("__")[0][:-6], "image and label name don't match. Image name: " + img_name + ". Label name: " + label_name
-        assert img_name.split("__")[1] == label_name.split("__")[1], "image and label name don't match. Image name: " + img_name + ". Label name: " + label_name
-        image = cv2.imread(os.path.join(self.images_path, img_name).__str__(), cv2.IMREAD_GRAYSCALE)
+        # Labels for fronts are stored with the image name plus the ``_front``
+        # suffix. Near-front masks are stored separately and use the
+        # ``_near_front`` suffix. Match the front label and derive the expected
+        # near-front label from the image name.
+        expected_front = img_name.replace(".png", "_front.png")
+        expected_near = img_name.replace(".png", "_near_front.png")
+        assert (
+            label_name == expected_front
+        ), f"image and label name don't match. Image name: {img_name}. Label name: {label_name}"
+
+        image = cv2.imread(
+            os.path.join(self.images_path, img_name).__str__(), cv2.IMREAD_GRAYSCALE
+        )
         mask_front_path = os.path.join(self.targets_path, label_name).__str__()
-        mask_near_path = os.path.join(self.near_targets_path, label_name).__str__()
+        mask_near_path = os.path.join(self.near_targets_path, expected_near).__str__()
         mask_front = cv2.imread(mask_front_path, cv2.IMREAD_GRAYSCALE)
         mask_near = cv2.imread(mask_near_path, cv2.IMREAD_GRAYSCALE)
         if mask_front is None:
