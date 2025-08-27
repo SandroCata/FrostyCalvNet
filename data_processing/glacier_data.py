@@ -130,32 +130,61 @@ class GlacierDataset(Dataset):
         
         #[TODO]: continue fixing from here by adjusting to include and work also for near_labels
 
-        # Assert that image and label name match. Labels are expected to contain a
-        # suffix identifying the target (e.g. ``_front`` or ``_zones``) directly
-        # before the file extension. Historically, the comparison attempted to
-        # strip this suffix by removing the last six characters of the first
-        # token which broke when the suffix was appended at the end of the file
-        # name (``..._front.png``). Here we explicitly remove the suffix and
-        # compare the full file names to avoid mismatches. Besides ``_front`` and
-        # ``_zones`` we also generate masks with a ``_near_front`` suffix for the
-        # auxiliary near-front task. Strip any of these markers before comparing.
+        # Assert that image, label and near-label names match. Labels are expected
+        # to contain a suffix identifying the target (e.g. ``_front`` or
+        # ``_zones``) directly before the file extension. Historically, the
+        # comparison attempted to strip this suffix by removing the last six
+        # characters of the first token which broke when the suffix was appended
+        # at the end of the file name (``..._front.png``). Here we explicitly
+        # remove the suffix and compare the full file names to avoid mismatches.
+        # Besides ``_front`` and ``_zones`` we also generate masks with a
+        # ``_near_front`` suffix for the auxiliary near-front task. Strip any of
+        # these markers before comparing.
         label_base = (
             label_name.replace("_near_fronts", "")
             .replace("_near_front", "")
             .replace("_front", "")
             .replace("_zones", "")
         )
+        near_base = (
+            label_near_name.replace("_near_fronts", "")
+            .replace("_near_front", "")
+            .replace("_front", "")
+            .replace("_zones", "")
+            )
         assert (
-            img_name == label_base
-        ), f"image and label name don't match. Image name: {img_name}. Label name: {label_name}"
-
+            img_name == label_base == near_base
+        ), (
+            f"image and label name don't match. Image name: {img_name}. "
+            f"Label name: {label_name}. Near-front label name: {label_near_name}"
+        )
         image = cv2.imread(
             os.path.join(self.images_path, img_name).__str__(), cv2.IMREAD_GRAYSCALE
         )
         mask = cv2.imread(
             os.path.join(self.targets_path, label_name).__str__(), cv2.IMREAD_GRAYSCALE
         )
-        x, y = self.transform(image, mask)
+        
+        if self.target == "fronts":
+            mask_near = cv2.imread(
+                os.path.join(self.near_targets_path, label_near_name).__str__(),
+                cv2.IMREAD_GRAYSCALE,
+            )
+            if mask is None:
+                raise FileNotFoundError(
+                    f"Front mask not found: {os.path.join(self.targets_path, label_name)}"
+                )
+            if mask_near is None:
+                raise FileNotFoundError(
+                    f"Near-front mask not found: {os.path.join(self.near_targets_path, label_near_name)}"
+                )
+            x, y = self.transform(image, (mask, mask_near))
+        else:
+            if mask is None:
+                raise FileNotFoundError(
+                    f"Mask not found: {os.path.join(self.targets_path, label_name)}"
+                )
+            x, y = self.transform(image, mask)
         return x, y, img_name, label_name
 
 
