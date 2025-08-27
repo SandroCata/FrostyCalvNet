@@ -116,6 +116,8 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
             suffix = "_near_front"
             if img_name.endswith(suffix):
                 img_name = img_name[: -len(suffix)]
+            elif img_name.endswith("_front"):
+                img_name = img_name[: -len("_front")]
 
         # #####################################################################################################
         # Store Patches with useful names

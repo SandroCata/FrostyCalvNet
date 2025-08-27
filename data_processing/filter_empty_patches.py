@@ -22,16 +22,16 @@ def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
         print(f"Missing masks for split '{split}', skipping")
         return
 
-    front_files = {p.name: p for p in front_dir.glob("*.png")}
-    near_files = {p.name: p for p in near_dir.glob("*.png")}
-    all_names = set(front_files) | set(near_files)
+    sar_files = [p.name for p in sar_dir.glob("*.png")]
 
     empty_names = []
-    for name in all_names:
-        front_path = front_files.get(name)
-        near_path = near_files.get(name)
-        front_empty = front_path is None or is_empty(front_path)
-        near_empty = near_path is None or is_empty(near_path)
+    for name in sar_files:
+        front_name = name.replace(".png", "_front.png")
+        near_name = name.replace(".png", "_near_front.png")
+        front_path = front_dir / front_name
+        near_path = near_dir / near_name
+        front_empty = not front_path.exists() or is_empty(front_path)
+        near_empty = not near_path.exists() or is_empty(near_path)
         if front_empty and near_empty:
             empty_names.append(name)
 
@@ -42,8 +42,12 @@ def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
         empty_names = empty_names[keep_n:]
 
     for name in empty_names:
-        for d in (sar_dir, front_dir, near_dir):
-            f = d / name
+        paths = [
+            sar_dir / name,
+            front_dir / name.replace(".png", "_front.png"),
+            near_dir / name.replace(".png", "_near_front.png"),
+        ]
+        for f in paths:
             if f.exists():
                 os.remove(f)
 

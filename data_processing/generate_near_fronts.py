@@ -35,7 +35,12 @@ def generate_near_front_masks(raw_data_dir: str) -> None:
         for file in src_dir.rglob("*.png"):
             mask = cv2.imread(str(file), cv2.IMREAD_GRAYSCALE)
             near_mask = highlight_near_fronts(mask)
-            cv2.imwrite(str(dst_dir / file.name), near_mask)
+            out_name = file.name
+            if out_name.endswith("_front.png"):
+                out_name = out_name.replace("_front.png", "_near_front.png")
+            else:
+                out_name = f"{file.stem}_near_front.png"
+            cv2.imwrite(str(dst_dir / out_name), near_mask)
 
 
 if __name__ == "__main__":
