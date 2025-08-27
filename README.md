@@ -80,6 +80,14 @@ Finally, run the `data_processing/data_preprocessing.py` script to preprocess th
 This will split the training data into validation and training sets, as used in the paper, and divide the images and labels into patches, storing them in the new directory `data`, which will be beside `/data_raw` and `/FrostyCalvNet`. 
 If you prefer to use a new random val-train-split, please delete `data_processing/data_splits/train_idx.txt` and `data_processing/data_splits/val_idx.txt`.
 
+After preprocessing, you can optionally remove patches that contain no labeled pixels by running:
+
+    python data_processing/filter_empty_patches.py
+
+This utility scans the processed `data` directory and deletes patch triplets with empty ground-truth masks
+across the `train`, `val`, and `test` splits while keeping a small fraction of negative examples (controlled
+via the `--keep_ratio` argument).
+
 A `/FrostyCalvNet/data_splts` folder will be created with two .txt file: `train_idx.txt` and `val_idx.txt`.
 
 ### Step 2.2 - Model Training
