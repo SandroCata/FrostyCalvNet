@@ -49,10 +49,8 @@ def is_subarray(subarray, arr):
 def reconstruct_from_patches_and_binarize(src_directory, dst_directory, modality, threshold_front_prob):
     """
     Reconstruct the image from patches in src_directory and store them in dst_directory.
-    The src_directory contains masks (patches = number_of_classes x height x width).
-    The class with maximum probability will be chosen as prediction after averaging the probabilities across patches
-    (if there is an overlap) and the image in dst_directory will only show the prediction (image = height x width)
-    :param src_directory:  source directory which contains pickled patches (class x height x width)
+    For "fronts" the patches contain a single channel and are stored separately for front and near-front.
+    :param src_directory:  source directory which contains pickled patches
     :param dst_directory: destination directory
     :param modality: Either "fronts" or "zones"
     :return: prediction (image = height x width)
@@ -61,9 +59,7 @@ def reconstruct_from_patches_and_binarize(src_directory, dst_directory, modality
     assert modality == "fronts" or modality == "zones", "Modality must either be 'fronts' or 'zones'."
 
     patches = os.listdir(src_directory)
-    list_of_names = []
-    for patch_name in patches:
-        list_of_names.append(os.path.split(patch_name)[1].split("__")[0])
+    list_of_names = [os.path.split(patch_name)[1].split("__")[0] for patch_name in patches]
     image_names = set(list_of_names)
     for name in image_names:
         print(f"File: {name}")
@@ -73,85 +69,80 @@ def reconstruct_from_patches_and_binarize(src_directory, dst_directory, modality
         pattern = re.compile(name)
         patches_for_image_names = [a for a in patches if pattern.match(a)]
         assert len(patches_for_image_names) > 0, "No patches found for image " + name
-        patches_for_image = []  # Will be Number_Of_Patches x Number_Of_Classes x Height x Width
-        irow = []
-        icol = []
-        padded_bottom = int(patches_for_image_names[0][:-4].split("_")[-5])
-        padded_right = int(patches_for_image_names[0][:-4].split("_")[-4])
 
-        for file_name in patches_for_image_names:
-            # #####################################################################################################
-            # Get the origin of the patches out of their names
-            # #####################################################################################################
-            # naming convention: nameOfTheOriginalImage__PaddedBottom_PaddedRight_NumberOfPatch_irow_icol.png
-
-            # Mask patches are 3D arrays with class probabilities
-            with open(os.path.join(src_directory, file_name), "rb") as fp:
-                class_probabilities_array = pickle.load(fp)
-                assert class_probabilities_array.ndim == 3, "Patch " + file_name + " has not enough dimensions (3 needed). Found: " + str(class_probabilities_array.ndim)
-                if modality == "fronts":
-                    assert len(class_probabilities_array) <= 2, "Patch " + file_name + " has too many classes (<2 needed). Found: " + str(len(class_probabilities_array))
-                else:
-                    assert len(class_probabilities_array) <= 4, "Patch " + file_name + " has too many classes (<4 needed). Found: " + str(len(class_probabilities_array))
-                patches_for_image.append(class_probabilities_array)
-            irow.append(int(os.path.split(file_name)[1][:-4].split("_")[-2]))
-            icol.append(int(os.path.split(file_name)[1][:-4].split("_")[-1]))
-
-        # Images are masks and store the probabilities for each class (patch = number_class x height x width)
-        class_patches_for_image = []
-        patches_for_image = [np.array(x) for x in patches_for_image]
-        patches_for_image = np.array(patches_for_image)
-        for class_layer in range(len(patches_for_image[0])):
-            class_patches_for_image.append(patches_for_image[:, class_layer, :, :])
-
-        class_probabilities_complete_image = []
-
-        # #####################################################################################################
-        # Reconstruct image (with number of channels = classes) from patches
-        # #####################################################################################################
-        for class_number in range(len(class_patches_for_image)):
-            class_probability_complete_image, _ = reconstruct_from_grayscale_patches_with_origin(class_patches_for_image[class_number],
-                                                                                                 origin=(irow, icol), use_gaussian=True)
-            class_probabilities_complete_image.append(class_probability_complete_image)
-
-        ######################################################################################################
-        # Cut Padding
-        ######################################################################################################
         if modality == "zones":
+            patches_for_image = []
+            irow = []
+            icol = []
+            padded_bottom = int(patches_for_image_names[0][:-4].split("_")[-5])
+            padded_right = int(patches_for_image_names[0][:-4].split("_")[-4])
+            for file_name in patches_for_image_names:
+                with open(os.path.join(src_directory, file_name), "rb") as fp:
+                    class_probabilities_array = pickle.load(fp)
+                    assert class_probabilities_array.ndim == 3, "Patch " + file_name + " has not enough dimensions (3 needed). Found: " + str(class_probabilities_array.ndim)
+                    assert len(class_probabilities_array) <= 4, "Patch " + file_name + " has too many classes (<4 needed). Found: " + str(len(class_probabilities_array))
+                    patches_for_image.append(class_probabilities_array)
+                irow.append(int(os.path.split(file_name)[1][:-4].split("_")[-2]))
+                icol.append(int(os.path.split(file_name)[1][:-4].split("_")[-1]))
+
+            class_patches_for_image = []
+            patches_for_image = [np.array(x) for x in patches_for_image]
+            patches_for_image = np.array(patches_for_image)
+            for class_layer in range(len(patches_for_image[0])):
+                class_patches_for_image.append(patches_for_image[:, class_layer, :, :])
+
+            class_probabilities_complete_image = []
+            for class_number in range(len(class_patches_for_image)):
+                class_probability_complete_image, _ = reconstruct_from_grayscale_patches_with_origin(
+                    class_patches_for_image[class_number], origin=(irow, icol), use_gaussian=True)
+                class_probabilities_complete_image.append(class_probability_complete_image)
+
             class_probabilities_complete_image = np.array(class_probabilities_complete_image)
             class_probabilities_complete_image = class_probabilities_complete_image[:, :-padded_bottom, :-padded_right]
-        else:
-            class_probabilities_complete_image = rearrange(class_probabilities_complete_image, '1 h w -> h w')
-            class_probabilities_complete_image = np.array(class_probabilities_complete_image)
-            class_probabilities_complete_image = class_probabilities_complete_image[:-padded_bottom, :-padded_right]
-
-        # #####################################################################################################
-        # Get prediction from probabilities
-        # #####################################################################################################
-        if modality == "zones":
-            # Choose class with highest probability as prediction
+        
             prediction = np.argmax(class_probabilities_complete_image, axis=0)
-        else:
-            # Take a threshold to get the class
-            prediction = class_probabilities_complete_image
-            prediction[prediction > threshold_front_prob] = 1
-            prediction[prediction <= threshold_front_prob] = 0
 
-        # #####################################################################################################
-        #  Convert [0, 1] to [0, 255] range
-        # #####################################################################################################
-        if modality == "fronts":
-            prediction[prediction == 0] = 0
-            prediction[prediction == 1] = 255
-            assert (is_subarray(np.unique(prediction), [0, 255])), "Unique front values are not correct"
-        else:
             prediction[prediction == 0] = 0
             prediction[prediction == 1] = 64
             prediction[prediction == 2] = 127
             prediction[prediction == 3] = 254
             assert (is_subarray(np.unique(prediction), [0, 64, 127, 254])), "Unique zone values are not correct"
 
-        cv2.imwrite(os.path.join(dst_directory, name + '.png'), prediction)
+            cv2.imwrite(os.path.join(dst_directory, name + '.png'), prediction)
+        else:
+            for suffix in ["front", "near"]:
+                channel_patches = [p for p in patches_for_image_names if p.endswith(f"_{suffix}.png")]
+                patches_for_image = []
+                irow = []
+                icol = []
+                first_name = re.sub(r'_(front|near)\.png$', '.png', channel_patches[0])
+                padded_bottom = int(first_name[:-4].split('_')[-5])
+                padded_right = int(first_name[:-4].split('_')[-4])
+                for file_name in channel_patches:
+                    base_file = re.sub(r'_(front|near)\.png$', '.png', file_name)
+                    with open(os.path.join(src_directory, file_name), "rb") as fp:
+                        class_probabilities_array = pickle.load(fp)
+                        # convert torch tensors to numpy arrays before aggregation
+                        if hasattr(class_probabilities_array, "cpu"):
+                            class_probabilities_array = class_probabilities_array.cpu().numpy()
+                        else:
+                            class_probabilities_array = np.asarray(class_probabilities_array)
+                        assert class_probabilities_array.ndim == 2, "Patch " + file_name + " has wrong dimensions"
+                    patches_for_image.append(class_probabilities_array)
+                    irow.append(int(base_file[:-4].split('_')[-2]))
+                    icol.append(int(base_file[:-4].split('_')[-1]))
+
+                patches_for_image = np.array(patches_for_image)
+                class_probability_complete_image, _ = reconstruct_from_grayscale_patches_with_origin(
+                    patches_for_image, origin=(irow, icol), use_gaussian=True)
+                class_probability_complete_image = class_probability_complete_image[:-padded_bottom, :-padded_right]
+                prediction = class_probability_complete_image
+                prediction[prediction > threshold_front_prob] = 1
+                prediction[prediction <= threshold_front_prob] = 0
+                prediction[prediction == 0] = 0
+                prediction[prediction == 1] = 255
+                assert (is_subarray(np.unique(prediction), [0, 255])), "Unique front values are not correct"
+                cv2.imwrite(os.path.join(dst_directory, name + f'_{suffix}.png'), prediction)
 
 
 def get_gaussian(patch_size, sigma_scale=1. / 8) -> np.ndarray:

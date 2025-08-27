@@ -110,7 +110,9 @@ def get_matching_out_of_folder(file_name, folder):
     :return: the file name in the folder that starts with the parameter file_name (minus .png)
     """
     files = os.listdir(folder)
-    matching_files = [a for a in files if re.match(pattern=os.path.split(file_name)[1][:-4], string=os.path.split(a)[1])]
+    pattern_name = os.path.split(file_name)[1][:-4]
+    pattern_name = re.sub(r'_(front|near)$', '', pattern_name)
+    matching_files = [a for a in files if re.match(pattern=pattern_name, string=os.path.split(a)[1])]
     if len(matching_files) > 1:
         print("Something went wrong!")
         print(f"targets_matching: {matching_files}")
@@ -156,35 +158,40 @@ def evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory):
             # Take sigmoid of prediction to get probabilities from logits and save probabilities in files
             y_hat = torch.sigmoid(y_hat)
             for index_in_batch in range(len(y_hat)):
-                with open(os.path.join(patch_directory, x_names[index_in_batch]), "wb") as fp:
-                    pickle.dump(y_hat[index_in_batch].to("cpu").clone(), fp)
+                front_map = y_hat[index_in_batch, 0].to("cpu").clone()
+                near_map = y_hat[index_in_batch, 1].to("cpu").clone()
+                base_name = x_names[index_in_batch][:-4]
+                with open(os.path.join(patch_directory, base_name + "_front.png"), "wb") as fp:
+                    pickle.dump(front_map, fp)
+                with open(os.path.join(patch_directory, base_name + "_near.png"), "wb") as fp:
+                    pickle.dump(near_map, fp)
 
         average_loss = sum(losses) / len(losses)
         return average_loss
 
 
-def calculate_segmentation_metrics(target_mask_modality, complete_predicted_masks, complete_directory, directory_of_complete_targets):
+def calculate_segmentation_metrics(target_mask_modality, complete_predicted_masks, complete_directory,
+                                   directory_of_complete_targets_front, directory_of_complete_targets_near=None):
     """
     Calculate IoU, Precision, Recall and F1-Score for all predicted segmentations
     :param target_mask_modality: either "zones" or "fronts"
     :param complete_predicted_masks: All file names of complete predictions
     :param complete_directory: the directory which is going to hold the complete predicted images
-    :param directory_of_complete_targets: directory holding the complete ground truth segmentations
+    :param directory_of_complete_targets_front: directory holding the complete ground truth segmentations for the front class
+    :param directory_of_complete_targets_near: directory holding the ground truth for the near-front class (only for fronts)
     :return:
     """
     print("Calculate segmentation metrics ...\n\n")
-    list_of_ious = []
-    list_of_precisions = []
-    list_of_recalls = []
-    list_of_f1_scores = []
-    for file_name in complete_predicted_masks:
-        print(f"File: {file_name}")
-        complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
-        matching_target_file = get_matching_out_of_folder(file_name, directory_of_complete_targets)
-        complete_target = cv2.imread(os.path.join(directory_of_complete_targets, matching_target_file).__str__(), cv2.IMREAD_GRAYSCALE)
-
-        if target_mask_modality == "zones":
-            # images need to be turned into a Tensor [0, ..., n_classes-1]
+    if target_mask_modality == "zones":
+        list_of_ious = []
+        list_of_precisions = []
+        list_of_recalls = []
+        list_of_f1_scores = []
+        for file_name in complete_predicted_masks:
+            print(f"File: {file_name}")
+            complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
+            matching_target_file = get_matching_out_of_folder(file_name, directory_of_complete_targets_front)
+            complete_target = cv2.imread(os.path.join(directory_of_complete_targets_front, matching_target_file).__str__(), cv2.IMREAD_GRAYSCALE)
             complete_predicted_mask_class_labels = turn_colors_to_class_labels_zones(complete_predicted_mask)
             complete_target_class_labels = turn_colors_to_class_labels_zones(complete_target)
             # Segmentation evaluation metrics
@@ -192,28 +199,43 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
             list_of_precisions.append(multi_class_metric(precision_score, complete_predicted_mask_class_labels, complete_target_class_labels))
             list_of_recalls.append(multi_class_metric(recall_score, complete_predicted_mask_class_labels, complete_target_class_labels))
             list_of_f1_scores.append(multi_class_metric(f1_score, complete_predicted_mask_class_labels, complete_target_class_labels))
-        else:
-            # images need to be turned into a Tensor [0, ..., n_classes-1]
-            complete_predicted_mask_class_labels = turn_colors_to_class_labels_front(complete_predicted_mask)
-            complete_target_class_labels = turn_colors_to_class_labels_front(complete_target)
-            # Segmentation evaluation metrics
-            flattened_complete_target_class_labels = np.ndarray.flatten(complete_target_class_labels)
-            flattened_complete_predicted_mask_class_labels = np.ndarray.flatten(complete_predicted_mask_class_labels)
-            list_of_ious.append(jaccard_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-            list_of_precisions.append(precision_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-            list_of_recalls.append(recall_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-            list_of_f1_scores.append(f1_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-
-    if model.hparams.target_masks == "zones":
+        
         print_zone_metrics("Precision", list_of_precisions)
         print_zone_metrics("Recall", list_of_recalls)
         print_zone_metrics("F1 Score", list_of_f1_scores)
         print_zone_metrics("IoU", list_of_ious)
     else:
-        print_front_metric("Precision", list_of_precisions)
-        print_front_metric("Recall", list_of_recalls)
-        print_front_metric("F1 Score", list_of_f1_scores)
-        print_front_metric("IoU", list_of_ious)
+        front_files = [f for f in complete_predicted_masks if f.endswith('_front.png')]
+        near_files = [f for f in complete_predicted_masks if f.endswith('_near.png')]
+        metrics_front = {"iou": [], "precision": [], "recall": [], "f1": []}
+        metrics_near = {"iou": [], "precision": [], "recall": [], "f1": []}
+        for file_list, target_dir, metrics in [
+            (front_files, directory_of_complete_targets_front, metrics_front),
+            (near_files, directory_of_complete_targets_near, metrics_near)
+        ]:
+            for file_name in file_list:
+                print(f"File: {file_name}")
+                complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
+                matching_target_file = get_matching_out_of_folder(file_name, target_dir)
+                complete_target = cv2.imread(os.path.join(target_dir, matching_target_file).__str__(), cv2.IMREAD_GRAYSCALE)
+                complete_predicted_mask_class_labels = turn_colors_to_class_labels_front(complete_predicted_mask)
+                complete_target_class_labels = turn_colors_to_class_labels_front(complete_target)
+                flattened_complete_target_class_labels = np.ndarray.flatten(complete_target_class_labels)
+                flattened_complete_predicted_mask_class_labels = np.ndarray.flatten(complete_predicted_mask_class_labels)
+                metrics["iou"].append(jaccard_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
+                metrics["precision"].append(precision_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
+                metrics["recall"].append(recall_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
+                metrics["f1"].append(f1_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
+        print("Front:")
+        print_front_metric("Precision", metrics_front["precision"])
+        print_front_metric("Recall", metrics_front["recall"])
+        print_front_metric("F1 Score", metrics_front["f1"])
+        print_front_metric("IoU", metrics_front["iou"])
+        print("Near-Front:")
+        print_front_metric("Precision", metrics_near["precision"])
+        print_front_metric("Recall", metrics_near["recall"])
+        print_front_metric("F1 Score", metrics_near["f1"])
+        print_front_metric("IoU", metrics_near["iou"])
 
 
 def mask_prediction_with_bounding_box(post_complete_predicted_mask, file_name, bounding_boxes_directory):
@@ -263,7 +285,9 @@ def post_processing(target_masks, complete_predicted_masks, bounding_boxes_direc
     print("Post-processing ...\n\n")
     for file_name in complete_predicted_masks:
         print(f"File: {file_name}")
-        resolution = int(os.path.split(file_name)[1][:-4].split('_')[-3])
+        name = os.path.split(file_name)[1][:-4]
+        name = re.sub(r'_(front|near)$', '', name)
+        resolution = int(name.split('_')[-3])
         # pixel_threshold (pixel) * resolution (m/pixel) = meter_threshold (m)
         pixel_threshold = meter_threshold / resolution
         complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
@@ -288,6 +312,7 @@ def calculate_front_delineation_metric(post_processed_predicted_masks, directory
     :param directory_of_target_fronts: directory holding the complete ground truth fronts
     :return: a list of all distance errors, if a prediction does not show a single front pixel, that image is neglected
     """
+    post_processed_predicted_masks = [f for f in post_processed_predicted_masks if f.endswith('_front.png')]
     list_of_all_front_errors = []
     number_of_images_with_no_predicted_front = 0
     for file_name in post_processed_predicted_masks:
@@ -296,7 +321,9 @@ def calculate_front_delineation_metric(post_processed_predicted_masks, directory
         matching_target_file = get_matching_out_of_folder(file_name, directory_of_target_fronts)
         target_front = cv2.imread(os.path.join(directory_of_target_fronts, matching_target_file).__str__(),
                                   cv2.IMREAD_GRAYSCALE)
-        resolution = int(os.path.split(file_name)[1][:-4].split('_')[-3])
+        name = os.path.split(file_name)[1][:-4]
+        name = re.sub(r'_(front|near)$', '', name)
+        resolution = int(name.split('_')[-3])
 
         # images need to be turned into a Tensor [0, ..., n_classes-1]
         post_processed_predicted_mask_class_labels = turn_colors_to_class_labels_front(post_processed_predicted_mask)
@@ -498,8 +525,11 @@ def visualizations(complete_postprocessed_directory, directory_of_target_fronts,
     """
     print("Creating visualizations ...\n\n")
     post_processed_predicted_masks = os.listdir(os.path.join(complete_postprocessed_directory))
+    post_processed_predicted_masks = [f for f in post_processed_predicted_masks if f.endswith('_front.png')]
     for file_name in post_processed_predicted_masks:
-        resolution = int(os.path.split(file_name)[1][:-4].split('_')[-3])
+        name = os.path.split(file_name)[1][:-4]
+        name = re.sub(r'_(front|near)$', '', name)
+        resolution = int(name.split('_')[-3])
         if resolution < 10:
             dilation = 9
         else:
@@ -586,13 +616,22 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     # CALCULATE SEGMENTATION METRICS (IoU & Hausdorff Distance)
     # ###############################################################################################
     complete_predicted_masks = os.listdir(complete_directory)
-    if mode == "test":
-        directory_of_complete_targets = os.path.join(data_raw_dir, model.hparams.target_masks, 'test')
+    if model.hparams.target_masks == "fronts":
+        if mode == "test":
+            directory_of_complete_targets_front = os.path.join(data_raw_dir, "fronts", 'test')
+            directory_of_complete_targets_near = os.path.join(data_raw_dir, "near_fronts", 'test')
+        else:
+            directory_of_complete_targets_front = os.path.join(data_raw_dir, "fronts", 'train')
+            directory_of_complete_targets_near = os.path.join(data_raw_dir, "near_fronts", 'train')
     else:
-        directory_of_complete_targets = os.path.join(data_raw_dir, model.hparams.target_masks, 'train')
+        if mode == "test":
+            directory_of_complete_targets_front = os.path.join(data_raw_dir, model.hparams.target_masks, 'test')
+        else:
+            directory_of_complete_targets_front = os.path.join(data_raw_dir, model.hparams.target_masks, 'train')
+        directory_of_complete_targets_near = None
 
     calculate_segmentation_metrics(model.hparams.target_masks, complete_predicted_masks, complete_directory,
-                                   directory_of_complete_targets)
+                                   directory_of_complete_targets_front, directory_of_complete_targets_near)
 
     # ###############################################################################################
     # POST-PROCESSING
