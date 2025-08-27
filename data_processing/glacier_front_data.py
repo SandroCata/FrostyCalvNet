@@ -34,7 +34,9 @@ class GlacierFrontDataset(GlacierDataset):
                                                   rotate=rotate,
                                                   flip=flip)
         
-        # path to near-front masks
+        #[TODO]: fix all the code knowing that now near_labels are loaded inside galecier_data.py
+
+        # path to near-front masks 
         self.near_targets_path = os.path.join(parent_dir, "data", "near_fronts", mode)
 
     def custom_to_tensor(self, image, target):
