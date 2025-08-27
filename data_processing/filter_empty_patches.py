@@ -14,30 +14,35 @@ def is_empty(mask_path: Path) -> bool:
 
 def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
     """Remove patches with empty ground-truth masks for a given split."""
-    parent_dir = os.path.dirname(os.getcwd())
+    parent_dir = Path(os.getcwd()).parent
     sar_dir = parent_dir / data_dir / "sar_images" / split
     front_dir = parent_dir / data_dir / "fronts" / split
     near_dir = parent_dir / data_dir / "near_fronts" / split
-    if not near_dir.exists():
-        print(f"No near_fronts directory for split '{split}', skipping")
+    if not front_dir.exists() or not near_dir.exists():
+        print(f"Missing masks for split '{split}', skipping")
         return
 
-    empty_masks = [p for p in near_dir.glob("*.png") if is_empty(p)]
+    front_files = {p.name: p for p in front_dir.glob("*.png")}
+    near_files = {p.name: p for p in near_dir.glob("*.png")}
+    all_names = set(front_files) | set(near_files)
+
+    empty_names = []
+    for name in all_names:
+        front_path = front_files.get(name)
+        near_path = near_files.get(name)
+        front_empty = front_path is None or is_empty(front_path)
+        near_empty = near_path is None or is_empty(near_path)
+        if front_empty and near_empty:
+            empty_names.append(name)
+
     # keep a fraction of negative samples
     if keep_ratio < 1.0:
-        random.shuffle(empty_masks)
-        keep_n = int(len(empty_masks) * keep_ratio)
-        empty_masks = empty_masks[keep_n:]
+        random.shuffle(empty_names)
+        keep_n = int(len(empty_names) * keep_ratio)
+        empty_names = empty_names[keep_n:]
 
-    for mask_path in empty_masks:
-        name = mask_path.name
-        # remove mask itself
-        try:
-            os.remove(mask_path)
-        except FileNotFoundError:
-            pass
-        # remove corresponding sar and front patches
-        for d in (sar_dir, front_dir):
+    for name in empty_names:
+        for d in (sar_dir, front_dir, near_dir):
             f = d / name
             if f.exists():
                 os.remove(f)

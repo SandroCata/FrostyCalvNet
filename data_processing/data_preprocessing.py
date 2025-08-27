@@ -107,16 +107,44 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
         # #####################################################################################################
         patches_image, coords_image = extract_grayscale_patches(image, patch_size_tuple=patch_size_tuple, stride=stride)
         img_name = os.path.split(file)[1][:-4]
+        suffix = ""
+        if modality_dir == "fronts":
+            suffix = "_front"
+            if img_name.endswith(suffix):
+                img_name = img_name[: -len(suffix)]
+        elif modality_dir == "near_fronts":
+            suffix = "_near_front"
+            if img_name.endswith(suffix):
+                img_name = img_name[: -len(suffix)]
 
         # #####################################################################################################
         # Store Patches with useful names
         # #####################################################################################################
         for j in range(len(patches_image)):
-            # naming convention: nameOfTheOriginalImage__PaddedBottom_PaddedRight_NumberOfPatch_irow_icol.png
+            # naming convention: nameOfTheOriginalImage__PaddedBottom_PaddedRight_NumberOfPatch_irow_icol[_{front|near_front}].png
             # with x and y the x and y coordinates of the patch in the complete image
-            add_to_name = '__' + str(bottom) + '_' + str(right) + '_' + str(j) + '_' \
-                          + str(coords_image[0][j]) + '_' + str(coords_image[1][j]) + '.png'
-            cv2.imwrite(os.path.join(parent_dir, "data", modality_dir, data_split_dir, img_name + add_to_name), patches_image[j])
+            add_to_name = (
+                "__"
+                + str(bottom)
+                + "_"
+                + str(right)
+                + "_"
+                + str(j)
+                + "_"
+                + str(coords_image[0][j])
+                + "_"
+                + str(coords_image[1][j])
+                + ".png"
+            )
+            patch_name = img_name + add_to_name
+            if suffix:
+                patch_name = patch_name.replace(".png", f"{suffix}.png")
+            cv2.imwrite(
+                os.path.join(
+                    parent_dir, "data", modality_dir, data_split_dir, patch_name
+                ),
+                patches_image[j],
+            )
 
 
 def main(raw_data_dir, patch_size, overlap, overlap_test, overlap_val):
