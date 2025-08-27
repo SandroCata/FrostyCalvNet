@@ -20,6 +20,7 @@ from sklearn.metrics import precision_score, recall_score, f1_score, jaccard_sco
 import skimage
 import shutil
 import builtins
+from functools import partial
 
 
 def front_error(prediction, label):
@@ -168,7 +169,7 @@ def evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory):
                 with open(os.path.join(patch_directory, base_name + "_near.png"), "wb") as fp:
                     pickle.dump(near_map, fp)
 
-        average_loss = sum(losses) / len(losses)
+        average_loss = (sum(losses) / len(losses)).item()
         return average_loss
 
 
@@ -189,6 +190,9 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
         list_of_precisions = []
         list_of_recalls = []
         list_of_f1_scores = []
+        precision = partial(precision_score, zero_division=0)
+        recall = partial(recall_score, zero_division=0)
+        f1 = partial(f1_score, zero_division=0)
         for file_name in complete_predicted_masks:
             print(f"File: {file_name}")
             complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
@@ -198,9 +202,9 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
             complete_target_class_labels = turn_colors_to_class_labels_zones(complete_target)
             # Segmentation evaluation metrics
             list_of_ious.append(multi_class_metric(jaccard_score, complete_predicted_mask_class_labels, complete_target_class_labels))
-            list_of_precisions.append(multi_class_metric(precision_score, complete_predicted_mask_class_labels, complete_target_class_labels))
-            list_of_recalls.append(multi_class_metric(recall_score, complete_predicted_mask_class_labels, complete_target_class_labels))
-            list_of_f1_scores.append(multi_class_metric(f1_score, complete_predicted_mask_class_labels, complete_target_class_labels))
+            list_of_precisions.append(multi_class_metric(precision, complete_predicted_mask_class_labels, complete_target_class_labels))
+            list_of_recalls.append(multi_class_metric(recall, complete_predicted_mask_class_labels, complete_target_class_labels))
+            list_of_f1_scores.append(multi_class_metric(f1, complete_predicted_mask_class_labels, complete_target_class_labels))
         
         print_zone_metrics("Precision", list_of_precisions)
         print_zone_metrics("Recall", list_of_recalls)
@@ -225,9 +229,27 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
                 flattened_complete_target_class_labels = np.ndarray.flatten(complete_target_class_labels)
                 flattened_complete_predicted_mask_class_labels = np.ndarray.flatten(complete_predicted_mask_class_labels)
                 metrics["iou"].append(jaccard_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-                metrics["precision"].append(precision_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-                metrics["recall"].append(recall_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-                metrics["f1"].append(f1_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
+                metrics["precision"].append(
+                    precision_score(
+                        flattened_complete_target_class_labels,
+                        flattened_complete_predicted_mask_class_labels,
+                        zero_division=0,
+                    )
+                )
+                metrics["recall"].append(
+                    recall_score(
+                        flattened_complete_target_class_labels,
+                        flattened_complete_predicted_mask_class_labels,
+                        zero_division=0,
+                    )
+                )
+                metrics["f1"].append(
+                    f1_score(
+                        flattened_complete_target_class_labels,
+                        flattened_complete_predicted_mask_class_labels,
+                        zero_division=0,
+                    )
+                )
         print("Front:")
         print_front_metric("Precision", metrics_front["precision"])
         print_front_metric("Recall", metrics_front["recall"])
@@ -600,6 +622,7 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     :return:
     """
     threshold_front_prob = 0.12
+    threshold_near_prob = 0.12
     # #############################################################################################################
     # EVALUATE MODEL ON GIVEN DATASET
     # #############################################################################################################
@@ -610,8 +633,13 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     # CONSTRUCT BINARIZED PREDICTIONS FROM PATCHES
     # ###############################################################################################
     print("Constructing complete predictions from patches ...\n\n")
-    reconstruct_from_patches_and_binarize(src_directory=patch_directory, dst_directory=complete_directory,
-                                          modality=model.hparams.target_masks, threshold_front_prob=threshold_front_prob)
+    reconstruct_from_patches_and_binarize(
+        src_directory=patch_directory,
+        dst_directory=complete_directory,
+        modality=model.hparams.target_masks,
+        threshold_front_prob=threshold_front_prob,
+        threshold_near_prob=threshold_near_prob,
+    )
     shutil.rmtree(patch_directory)
 
     # ###############################################################################################

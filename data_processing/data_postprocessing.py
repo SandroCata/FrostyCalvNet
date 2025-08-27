@@ -46,15 +46,39 @@ def is_subarray(subarray, arr):
     return False
 
 
-def reconstruct_from_patches_and_binarize(src_directory, dst_directory, modality, threshold_front_prob):
+def reconstruct_from_patches_and_binarize(
+    src_directory,
+    dst_directory,
+    modality,
+    threshold_front_prob=0.5,
+    threshold_near_prob=None,
+):
     """
-    Reconstruct the image from patches in src_directory and store them in dst_directory.
-    For "fronts" the patches contain a single channel and are stored separately for front and near-front.
-    :param src_directory:  source directory which contains pickled patches
-    :param dst_directory: destination directory
-    :param modality: Either "fronts" or "zones"
-    :return: prediction (image = height x width)
+    Reconstruct the image from patches in ``src_directory`` and store them in
+    ``dst_directory``. For ``"fronts"`` the patches contain a single channel and
+    are stored separately for front and near-front.
+
+    Parameters
+    ----------
+    src_directory : str
+        Source directory which contains pickled patches.
+    dst_directory : str
+        Destination directory.
+    modality : str
+        Either ``"fronts"`` or ``"zones"``.
+    threshold_front_prob : float, optional
+        Threshold used to binarize the front channel. Default is ``0.5``.
+    threshold_near_prob : float, optional
+        Threshold used to binarize the near-front channel. Defaults to
+        ``threshold_front_prob`` if not provided.
+
+    Returns
+    -------
+    numpy.ndarray
+        Prediction (image = height x width).
     """
+    if threshold_near_prob is None:
+        threshold_near_prob = threshold_front_prob
 
     assert modality == "fronts" or modality == "zones", "Modality must either be 'fronts' or 'zones'."
 
@@ -137,8 +161,9 @@ def reconstruct_from_patches_and_binarize(src_directory, dst_directory, modality
                     patches_for_image, origin=(irow, icol), use_gaussian=True)
                 class_probability_complete_image = class_probability_complete_image[:-padded_bottom, :-padded_right]
                 prediction = class_probability_complete_image
-                prediction[prediction > threshold_front_prob] = 1
-                prediction[prediction <= threshold_front_prob] = 0
+                threshold = threshold_front_prob if suffix == "front" else threshold_near_prob
+                prediction[prediction > threshold] = 1
+                prediction[prediction <= threshold] = 0
                 prediction[prediction == 0] = 0
                 prediction[prediction == 1] = 255
                 assert (is_subarray(np.unique(prediction), [0, 255])), "Unique front values are not correct"
