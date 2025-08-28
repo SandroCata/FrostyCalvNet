@@ -50,6 +50,12 @@ def main(hparams, run_number, running_mode):
     temp_ckpt_path = os.path.join(checkpoint_dir, "temporary.ckpt")
     if os.path.isfile(temp_ckpt_path):
         print("Taking up the training where it was left (temporary checkpoint)")
+        # When resuming from a checkpoint, `max_epochs` is treated as the
+        # total number of epochs to run. To allow continuing training for
+        # additional epochs, we extend `max_epochs` by the number of epochs
+        # already completed.
+        ckpt = torch.load(temp_ckpt_path, map_location="cpu")
+        new_max_epochs = ckpt.get("epoch", 0) + 1 + hparams.epochs
         trainer = Trainer(
             resume_from_checkpoint=temp_ckpt_path,
             callbacks=[checkpoint_callback, lr_monitor],
@@ -57,7 +63,7 @@ def main(hparams, run_number, running_mode):
             gpus=1,  # Train on gpu
             gradient_clip_val=clip_norm,
             logger=logger,
-            max_epochs=hparams.epochs,
+            max_epochs=new_max_epochs,
             num_sanity_val_steps=0,
         )
     else:
@@ -151,7 +157,7 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=2, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=1, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "

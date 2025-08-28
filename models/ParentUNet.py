@@ -126,8 +126,9 @@ class UNet(pl.LightningModule):
     def training_epoch_end(self, outputs):
         # calculating average loss
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        # logging using tensorboard logger
+        # logging using tensorboard logger and for callbacks
         self.logger.experiment.add_scalar("Loss/Train", avg_loss, self.current_epoch)
+        self.log('avg_train_loss', avg_loss)
         metrics = self.log_metric(outputs, "Train")
         metric_string = ", ".join([f"{name}: {value:.4f}" for name, value in metrics.items()])
         print(f"\nEpoch {self.current_epoch} - Train loss: {avg_loss:.4f}, {metric_string}")
