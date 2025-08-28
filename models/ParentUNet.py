@@ -130,7 +130,7 @@ class UNet(pl.LightningModule):
         self.logger.experiment.add_scalar("Loss/Train", avg_loss, self.current_epoch)
         metrics = self.log_metric(outputs, "Train")
         metric_string = ", ".join([f"{name}: {value:.4f}" for name, value in metrics.items()])
-        print(f"Epoch {self.current_epoch} - Train loss: {avg_loss:.4f}, {metric_string}")
+        print(f"\nEpoch {self.current_epoch} - Train loss: {avg_loss:.4f}, {metric_string}")
 
     def validation_step(self, batch, batch_idx):
         x, y, x_name, y_names = batch

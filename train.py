@@ -12,7 +12,7 @@ import time
 import torch
 import os
 from pytorch_lightning.callbacks import LearningRateMonitor
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+#from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import builtins
 
 
@@ -20,71 +20,87 @@ def main(hparams, run_number, running_mode):
     if hparams.target_masks == "zones":
         checkpoint_dir = os.path.join('checkpoints', 'zones_segmentation', 'run_' + str(run_number))
         tb_logs_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(run_number))
-        checkpoint_callback = ModelCheckpoint(monitor='avg_metric_validation',
-                                              dirpath=checkpoint_dir,
-                                              filename='{epoch:02d}-{avg_metric_validation:.2f}',
-                                              mode='max',  # Here: the higher the IoU the better
-                                              save_top_k=1)
-        early_stop_callback = EarlyStopping(monitor="avg_metric_validation", patience=30,
-                                            verbose=False, mode="max", check_finite=True)
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=checkpoint_dir,
+            filename='{epoch:02d}-{avg_train_loss:.2f}',
+            monitor='avg_train_loss',
+            mode='max',
+            save_top_k=-1,
+            save_last=True,
+        )
         clip_norm = 1.0
     else:
         checkpoint_dir = os.path.join('checkpoints', 'fronts_segmentation', 'run_' + str(run_number))
         tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(run_number))
-        checkpoint_callback = ModelCheckpoint(monitor='avg_loss_validation',
-                                              dirpath=checkpoint_dir,
-                                              filename='{epoch:02d}-{avg_loss_validation:.2f}',
-                                              mode='min',  # Here: the lower the loss the better
-                                              save_top_k=1)
-        early_stop_callback = EarlyStopping(monitor="avg_loss_validation", patience=30,
-                                            verbose=False, mode="min", check_finite=True)
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=checkpoint_dir,
+            filename='{epoch:02d}-{avg_train_loss:.2f}',
+            monitor='avg_train_loss',
+            mode='max',
+            save_top_k=-1,
+            save_last=True,
+        )
         clip_norm = 1.0
 
     logger = TensorBoardLogger(tb_logs_dir, name="log", default_hp_metric=False)
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
+
     # if we have already trained this model take up the training at the last checkpoint
-    if os.path.isfile(checkpoint_dir + "temporary.ckpt"):
+    temp_ckpt_path = os.path.join(checkpoint_dir, "temporary.ckpt")
+    if os.path.isfile(temp_ckpt_path):
         print("Taking up the training where it was left (temporary checkpoint)")
-        trainer = Trainer(resume_from_checkpoint=checkpoint_dir + "temporary.ckpt",
-                          callbacks=[early_stop_callback, checkpoint_callback, lr_monitor],
-                          deterministic=True,
-                          gpus=1,  # Train on gpu
-                          gradient_clip_val=clip_norm,
-                          logger=logger,
-                          max_epochs=hparams.epochs)
+        trainer = Trainer(
+            resume_from_checkpoint=temp_ckpt_path,
+            callbacks=[checkpoint_callback, lr_monitor],
+            deterministic=True,
+            gpus=1,  # Train on gpu
+            gradient_clip_val=clip_norm,
+            logger=logger,
+            max_epochs=hparams.epochs,
+            num_sanity_val_steps=0,
+        )
     else:
         if running_mode == "batch_overfit":
             # Try to overfit on some batches
-            trainer = Trainer.from_argparse_args(hparams,
-                                                 callbacks=[checkpoint_callback, lr_monitor],
-                                                 deterministic=True,
-                                                 fast_dev_run=False,
-                                                 flush_logs_every_n_steps=100,
-                                                 gpus=1,
-                                                 log_every_n_steps=1,
-                                                 logger=logger,
-                                                 max_epochs=1000,
-                                                 overfit_batches=1)
+            trainer = Trainer.from_argparse_args(
+                hparams,
+                callbacks=[checkpoint_callback, lr_monitor],
+                deterministic=True,
+                fast_dev_run=False,
+                flush_logs_every_n_steps=100,
+                gpus=1,
+                log_every_n_steps=1,
+                logger=logger,
+                max_epochs=1000,
+                overfit_batches=1,
+                num_sanity_val_steps=0,
+            )
         elif running_mode == "debugging":
             # Debugging mode
-            trainer = Trainer.from_argparse_args(hparams,
-                                                 callbacks=[checkpoint_callback, lr_monitor],
-                                                 deterministic=True,
-                                                 fast_dev_run=3,
-                                                 flush_logs_every_n_steps=100,
-                                                 gpus=1,
-                                                 log_every_n_steps=1,
-                                                 logger=logger)
+            trainer = Trainer.from_argparse_args(
+                hparams,
+                callbacks=[checkpoint_callback, lr_monitor],
+                deterministic=True,
+                fast_dev_run=3,
+                flush_logs_every_n_steps=100,
+                gpus=1,
+                log_every_n_steps=1,
+                logger=logger,
+                num_sanity_val_steps=0,
+            )
         elif running_mode == "training":
             # Training mode
-            trainer = Trainer.from_argparse_args(hparams,
-                                                 callbacks=[early_stop_callback, checkpoint_callback, lr_monitor],
-                                                 deterministic=True,
-                                                 gpus=1,  # Train on gpu
-                                                 gradient_clip_val=clip_norm,
-                                                 logger=logger,
-                                                 max_epochs=hparams.epochs)
+            trainer = Trainer.from_argparse_args(
+                hparams,
+                callbacks=[checkpoint_callback, lr_monitor],
+                deterministic=True,
+                gpus=1,  # Train on gpu
+                gradient_clip_val=clip_norm,
+                logger=logger,
+                max_epochs=hparams.epochs,
+                num_sanity_val_steps=0,
+            )
         else:
             print("Running mode not recognized")
             sys.exit()
@@ -97,7 +113,8 @@ def main(hparams, run_number, running_mode):
                                             wrap=hparams.wrap,
                                             noise=hparams.noise,
                                             rotate=hparams.rotate,
-                                            flip=hparams.flip)
+                                            flip=hparams.flip,
+                                            load_val=False)  # Flase = skip validation, True otherwise
         model = ZonesUNet(vars(hparams))
 
     else:
@@ -108,7 +125,8 @@ def main(hparams, run_number, running_mode):
                                             wrap=hparams.wrap,
                                             noise=hparams.noise,
                                             rotate=hparams.rotate,
-                                            flip=hparams.flip)
+                                            flip=hparams.flip,
+                                            load_val=False) # Flase = skip validation, True otherwise
         model = FrontUNet(vars(hparams))
 
     summary(model.cuda(), (1, 256, 256))
@@ -117,9 +135,9 @@ def main(hparams, run_number, running_mode):
     trainer.fit(model, datamodule=datamodule)
 
     if running_mode == "training":
-        if os.path.isfile(checkpoint_dir + "temporary.ckpt"):
-            os.remove(checkpoint_dir + "temporary.ckpt")
-        trainer.save_checkpoint(filepath=checkpoint_dir + "temporary.ckpt")
+        if os.path.isfile(temp_ckpt_path):
+            os.remove(temp_ckpt_path)
+        trainer.save_checkpoint(filepath=temp_ckpt_path)
 
 
 if __name__ == '__main__':

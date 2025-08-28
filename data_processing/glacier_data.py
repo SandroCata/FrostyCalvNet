@@ -78,6 +78,7 @@ class GlacierDataset(Dataset):
         # assert both lists have the same length
         assert len(self.imgs) == len(self.labels) == len(self.near_labels), "You don't have the same number of images and masks"
         self.mode = mode
+        self.target = target
         self.augmentation = augmentation
 
         self.bright = bright
@@ -190,11 +191,26 @@ class GlacierDataset(Dataset):
 
 class GlacierDataModule(pl.LightningDataModule):
 
-    def __init__(self, batch_size, target, augmentation, parent_dir, bright, wrap, noise, rotate, flip):
-        """
-        :param batch_size: batch size
-        :param target: Either 'zones' or 'front'. Tells which masks should be used.
-        :param augmentation: Whether or not augmentation shall be performed
+    def __init__(self, batch_size, target, augmentation, parent_dir, bright, wrap, noise, rotate, flip,
+                 load_val: bool = True):
+        """Base datamodule for glacier datasets.
+
+        Parameters
+        ----------
+        batch_size : int
+            Batch size used for the dataloaders.
+        target : str
+            Either ``'zones'`` or ``'front'`` to decide which masks are used.
+        augmentation : bool
+            Whether or not augmentation shall be performed.
+        parent_dir : str
+            Base directory that holds the ``data`` folder.
+        bright, wrap, noise, rotate, flip : float
+            Probabilities for the individual augmentation operations.
+        load_val : bool, optional
+            If ``True`` (default), the validation dataset is prepared during ``setup``.
+            Setting this to ``False`` allows training without loading any validation data,
+            which is useful when validation is run in a separate script.
         """
         super().__init__()
         self.batch_size = batch_size
@@ -210,6 +226,8 @@ class GlacierDataModule(pl.LightningDataModule):
         self.noise = noise
         self.rotate = rotate
         self.flip = flip
+        self.load_val = load_val
+
 
     def setup(self, stage=None):
         pass
@@ -218,6 +236,8 @@ class GlacierDataModule(pl.LightningDataModule):
         return DataLoader(self.glacier_train, batch_size=self.batch_size, num_workers=4, pin_memory=True)
 
     def val_dataloader(self):
+        if self.glacier_val is None:
+            return None
         return DataLoader(self.glacier_val, batch_size=self.batch_size, num_workers=4, pin_memory=True)
 
     def test_dataloader(self):

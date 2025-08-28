@@ -38,7 +38,8 @@ class GlacierZonesDataset(GlacierDataset):
 
 class GlacierZonesDataModule(GlacierDataModule):
 
-    def __init__(self, batch_size, augmentation, parent_dir, bright, wrap, noise, rotate, flip):
+    def __init__(self, batch_size, augmentation, parent_dir, bright, wrap, noise, rotate, flip,
+                 load_val: bool = True):
         super(GlacierZonesDataModule, self).__init__(batch_size=batch_size,
                                                      target="zones",
                                                      augmentation=augmentation,
@@ -47,7 +48,8 @@ class GlacierZonesDataModule(GlacierDataModule):
                                                      wrap=wrap,
                                                      noise=noise,
                                                      rotate=rotate,
-                                                     flip=flip)
+                                                     flip=flip,
+                                                     load_val=load_val)
 
     def setup(self, stage=None):
         if stage == 'test' or stage is None:
@@ -66,10 +68,11 @@ class GlacierZonesDataModule(GlacierDataModule):
                                                      noise=self.noise,
                                                      rotate=self.rotate,
                                                      flip=self.flip)
-            self.glacier_val = GlacierZonesDataset(mode='val', augmentation=self.augmentation,
-                                                   parent_dir=self.parent_dir,
-                                                   bright=self.bright,
-                                                   wrap=self.wrap,
-                                                   noise=self.noise,
-                                                   rotate=self.rotate,
-                                                   flip=self.flip)
+            if self.load_val:
+                self.glacier_val = GlacierZonesDataset(mode='val', augmentation=self.augmentation,
+                                                       parent_dir=self.parent_dir,
+                                                       bright=self.bright,
+                                                       wrap=self.wrap,
+                                                       noise=self.noise,
+                                                       rotate=self.rotate,
+                                                       flip=self.flip)
