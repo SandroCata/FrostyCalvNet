@@ -47,17 +47,27 @@ def main(hparams, run_number, running_mode):
 
 
     # if we have already trained this model take up the training at the last checkpoint
-    temp_ckpt_path = os.path.join(checkpoint_dir, "temporary.ckpt")
-    if os.path.isfile(temp_ckpt_path):
-        print("Taking up the training where it was left (temporary checkpoint)")
+    latest_ckpt_path = None
+    ckpt_files = [f for f in os.listdir(checkpoint_dir) if f.startswith("epoch=") and f.endswith(".ckpt")]
+    if ckpt_files:
+        def _epoch_from_name(name: str) -> int:
+            try:
+                return int(name.split('-')[0].split('=')[1])
+            except Exception:
+                return -1
+        latest_ckpt = max(ckpt_files, key=_epoch_from_name)
+        latest_ckpt_path = os.path.join(checkpoint_dir, latest_ckpt)
+
+    if latest_ckpt_path:
+        print(f"Taking up the training where it was left ({os.path.basename(latest_ckpt_path)})")
         # When resuming from a checkpoint, `max_epochs` is treated as the
         # total number of epochs to run. To allow continuing training for
         # additional epochs, we extend `max_epochs` by the number of epochs
         # already completed.
-        ckpt = torch.load(temp_ckpt_path, map_location="cpu")
+        ckpt = torch.load(latest_ckpt_path, map_location="cpu")
         new_max_epochs = ckpt.get("epoch", 0) + hparams.epochs
         trainer = Trainer(
-            resume_from_checkpoint=temp_ckpt_path,
+            resume_from_checkpoint=latest_ckpt_path,
             callbacks=[checkpoint_callback, lr_monitor],
             deterministic=True,
             gpus=1,  # Train on gpu
@@ -140,11 +150,6 @@ def main(hparams, run_number, running_mode):
 
     trainer.fit(model, datamodule=datamodule)
 
-    if running_mode == "training":
-        if os.path.isfile(temp_ckpt_path):
-            os.remove(temp_ckpt_path)
-        trainer.save_checkpoint(filepath=temp_ckpt_path)
-
 
 if __name__ == '__main__':
     seed_everything(42)
@@ -162,11 +167,13 @@ if __name__ == '__main__':
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "
                                                                        "temporary.ckpt if one is available for this "
+                                                                       "be stored in files named 'epoch=...ckpt' inside the checkpoint directory."
+                                                                       "Train.py will resume training from the latest such checkpoint if one is available for this "
                                                                        "run.")
     parent_parser.add_argument('--run_number', type=int, default=0,
                                help="The number how often this model was already trained. "
                                     "If you run train.py twice with the same run_number, "
-                                    "the second run will pick up training the first model from the temporary.ckpt.")
+                                    "the second run will pick up training from the most recent 'epoch=...ckpt' file.")
     parent_parser.add_argument('--target_masks', default="fronts", help="Either 'fronts' or 'zones'. "
                                                                         "This decides which model will be trained.")
 
