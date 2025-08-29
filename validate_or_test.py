@@ -545,21 +545,35 @@ def front_delineation_metric(complete_postprocessed_directory, directory_of_targ
             _ = calculate_front_delineation_metric(subset_of_predictions, directory_of_target_fronts)
 
 
-def visualizations(complete_postprocessed_directory, directory_of_target_fronts, directory_of_sar_images,
-                   bounding_boxes_directory, visualizations_dir):
+def visualizations(complete_postprocessed_directory,
+                   directory_of_target_fronts,
+                   directory_of_target_near_fronts,
+                   directory_of_sar_images,
+                   bounding_boxes_directory,
+                   visualizations_dir):
     """
-    Produce visualizations showing the predicted front, the ground truth and the bounding box on the SAR image
+    Produce visualizations showing the predicted front/near-front, the ground truth and the bounding box on the SAR image
     :param complete_postprocessed_directory: the directory holding the complete predicted and post-processed images
     :param directory_of_target_fronts: directory holding the complete ground truth fronts
+    :param directory_of_target_near_fronts: directory holding the ground truth near fronts
     :param directory_of_sar_images: directory holding the sar images
     :param bounding_boxes_directory: directory holding the bounding boxes
     :param visualizations_dir: directory which is going to hold the visualizations
     :return:
     """
     print("Creating visualizations ...\n\n")
-    post_processed_predicted_masks = os.listdir(os.path.join(complete_postprocessed_directory))
-    post_processed_predicted_masks = [f for f in post_processed_predicted_masks if f.endswith('_front.png')]
+    post_processed_predicted_masks = [
+        f
+        for f in os.listdir(complete_postprocessed_directory)
+        if f.endswith('_front.png') or f.endswith('_near.png')
+    ]
     for file_name in post_processed_predicted_masks:
+        if file_name.endswith('_front.png'):
+            target_dir = directory_of_target_fronts
+        else:  # '_near.png'
+            if directory_of_target_near_fronts is None or not os.path.isdir(directory_of_target_near_fronts):
+                continue
+            target_dir = directory_of_target_near_fronts
         name = os.path.split(file_name)[1][:-4]
         name = re.sub(r'_(front|near)$', '', name)
         resolution = int(name.split('_')[-3])
@@ -568,31 +582,40 @@ def visualizations(complete_postprocessed_directory, directory_of_target_fronts,
         else:
             dilation = 3
 
-        post_processed_predicted_mask = cv2.imread(os.path.join(complete_postprocessed_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
-        matching_target_file = get_matching_out_of_folder(file_name, directory_of_target_fronts)
-        target_front = cv2.imread(os.path.join(directory_of_target_fronts, matching_target_file).__str__(), cv2.IMREAD_GRAYSCALE)
+        post_processed_predicted_mask = cv2.imread(
+            os.path.join(complete_postprocessed_directory, file_name).__str__(),
+            cv2.IMREAD_GRAYSCALE,
+        )
+        matching_target_file = get_matching_out_of_folder(file_name, target_dir)
+        target_mask = cv2.imread(
+            os.path.join(target_dir, matching_target_file).__str__(),
+            cv2.IMREAD_GRAYSCALE,
+        )
         matching_sar_file = get_matching_out_of_folder(file_name, directory_of_sar_images)
-        sar_image = cv2.imread(os.path.join(directory_of_sar_images, matching_sar_file).__str__(), cv2.IMREAD_GRAYSCALE)
+        sar_image = cv2.imread(
+            os.path.join(directory_of_sar_images, matching_sar_file).__str__(),
+            cv2.IMREAD_GRAYSCALE,
+        )
 
-        predicted_front = np.array(post_processed_predicted_mask)
-        ground_truth_front = np.array(target_front)
+        predicted_mask = np.array(post_processed_predicted_mask)
+        ground_truth_mask = np.array(target_mask)
         sar_image = np.array(sar_image)
 
         # Ensure all arrays share the same spatial dimensions
-        predicted_front, ground_truth_front = crop_to_same_shape(predicted_front, ground_truth_front)
-        predicted_front, sar_image = crop_to_same_shape(predicted_front, sar_image)
-        ground_truth_front, sar_image = crop_to_same_shape(ground_truth_front, sar_image)
+        predicted_mask, ground_truth_mask = crop_to_same_shape(predicted_mask, ground_truth_mask)
+        predicted_mask, sar_image = crop_to_same_shape(predicted_mask, sar_image)
+        ground_truth_mask, sar_image = crop_to_same_shape(ground_truth_mask, sar_image)
 
         kernel = np.ones((dilation, dilation), np.uint8)
-        predicted_front = cv2.dilate(predicted_front, kernel, iterations=1)
-        ground_truth_front = cv2.dilate(ground_truth_front, kernel, iterations=1)
+        predicted_mask = cv2.dilate(predicted_mask, kernel, iterations=1)
+        ground_truth_mask = cv2.dilate(ground_truth_mask, kernel, iterations=1)
 
         sar_image_rgb = skimage.color.gray2rgb(sar_image)
         sar_image_rgb = np.uint8(sar_image_rgb)
 
-        sar_image_rgb[predicted_front > 0] = [0, 255, 255]                # b, g, r
-        sar_image_rgb[ground_truth_front > 0] = [255, 51, 51]
-        correct_prediction = np.logical_and(predicted_front, ground_truth_front)
+        sar_image_rgb[predicted_mask > 0] = [0, 255, 255]  # b, g, r
+        sar_image_rgb[ground_truth_mask > 0] = [255, 51, 51]
+        correct_prediction = np.logical_and(predicted_mask, ground_truth_mask)
         sar_image_rgb[correct_prediction > 0] = [255, 0, 255]
 
         # Insert Bounding Box
@@ -663,20 +686,20 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     complete_predicted_masks = os.listdir(complete_directory)
     if model.hparams.target_masks == "fronts":
         if mode == "test":
-            directory_of_complete_targets_front = os.path.join(data_raw_dir, "fronts", 'test')
-            directory_of_complete_targets_near = os.path.join(data_raw_dir, "near_fronts", 'test')
+            directory_of_target_fronts = os.path.join(data_raw_dir, "fronts", 'test')
+            directory_of_target_near_fronts = os.path.join(data_raw_dir, "near_fronts", 'test')
         else:
-            directory_of_complete_targets_front = os.path.join(data_raw_dir, "fronts", 'train')
-            directory_of_complete_targets_near = os.path.join(data_raw_dir, "near_fronts", 'train')
+            directory_of_target_fronts = os.path.join(data_raw_dir, "fronts", 'train')
+            directory_of_target_near_fronts = os.path.join(data_raw_dir, "near_fronts", 'train')
     else:
         if mode == "test":
-            directory_of_complete_targets_front = os.path.join(data_raw_dir, model.hparams.target_masks, 'test')
+            directory_of_target_fronts = os.path.join(data_raw_dir, model.hparams.target_masks, 'test')
         else:
-            directory_of_complete_targets_front = os.path.join(data_raw_dir, model.hparams.target_masks, 'train')
-        directory_of_complete_targets_near = None
+            directory_of_target_fronts = os.path.join(data_raw_dir, model.hparams.target_masks, 'train')
+        directory_of_target_near_fronts = None
 
     calculate_segmentation_metrics(model.hparams.target_masks, complete_predicted_masks, complete_directory,
-                                   directory_of_complete_targets_front, directory_of_complete_targets_near)
+                                   directory_of_target_fronts, directory_of_target_near_fronts)
 
     # ###############################################################################################
     # POST-PROCESSING
@@ -700,8 +723,12 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
         directory_of_sar_images = os.path.join(data_raw_dir, "sar_images", 'test')
     else:
         directory_of_sar_images = os.path.join(data_raw_dir, "sar_images", 'train')
-    visualizations(complete_postprocessed_directory, directory_of_target_fronts, directory_of_sar_images,
-                   bounding_boxes_directory, visualizations_dir)
+    visualizations(complete_postprocessed_directory,
+                   directory_of_target_fronts,
+                   directory_of_target_near_fronts,
+                   directory_of_sar_images,
+                   bounding_boxes_directory,
+                   visualizations_dir)
 
 
 if __name__ == "__main__":
