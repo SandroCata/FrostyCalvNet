@@ -123,6 +123,11 @@ def get_matching_out_of_folder(file_name, folder):
         print("Something went wrong! No matches found")
     return matching_files[0]
 
+def crop_to_same_shape(a, b):
+    """Crop two arrays to their smallest shared height and width."""
+    min_height = min(a.shape[0], b.shape[0])
+    min_width = min(a.shape[1], b.shape[1])
+    return a[:min_height, :min_width], b[:min_height, :min_width]
 
 def evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory):
     """
@@ -198,6 +203,8 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
             complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
             matching_target_file = get_matching_out_of_folder(file_name, directory_of_complete_targets_front)
             complete_target = cv2.imread(os.path.join(directory_of_complete_targets_front, matching_target_file).__str__(), cv2.IMREAD_GRAYSCALE)
+            if complete_predicted_mask.shape != complete_target.shape:
+                complete_predicted_mask, complete_target = crop_to_same_shape(complete_predicted_mask, complete_target)
             complete_predicted_mask_class_labels = turn_colors_to_class_labels_zones(complete_predicted_mask)
             complete_target_class_labels = turn_colors_to_class_labels_zones(complete_target)
             # Segmentation evaluation metrics
@@ -224,6 +231,8 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
                 complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
                 matching_target_file = get_matching_out_of_folder(file_name, target_dir)
                 complete_target = cv2.imread(os.path.join(target_dir, matching_target_file).__str__(), cv2.IMREAD_GRAYSCALE)
+                if complete_predicted_mask.shape != complete_target.shape:
+                    complete_predicted_mask, complete_target = crop_to_same_shape(complete_predicted_mask, complete_target)
                 complete_predicted_mask_class_labels = turn_colors_to_class_labels_front(complete_predicted_mask)
                 complete_target_class_labels = turn_colors_to_class_labels_front(complete_target)
                 flattened_complete_target_class_labels = np.ndarray.flatten(complete_target_class_labels)
@@ -567,11 +576,17 @@ def visualizations(complete_postprocessed_directory, directory_of_target_fronts,
 
         predicted_front = np.array(post_processed_predicted_mask)
         ground_truth_front = np.array(target_front)
+        sar_image = np.array(sar_image)
+
+        # Ensure all arrays share the same spatial dimensions
+        predicted_front, ground_truth_front = crop_to_same_shape(predicted_front, ground_truth_front)
+        predicted_front, sar_image = crop_to_same_shape(predicted_front, sar_image)
+        ground_truth_front, sar_image = crop_to_same_shape(ground_truth_front, sar_image)
+
         kernel = np.ones((dilation, dilation), np.uint8)
         predicted_front = cv2.dilate(predicted_front, kernel, iterations=1)
         ground_truth_front = cv2.dilate(ground_truth_front, kernel, iterations=1)
 
-        sar_image = np.array(sar_image)
         sar_image_rgb = skimage.color.gray2rgb(sar_image)
         sar_image_rgb = np.uint8(sar_image_rgb)
 
@@ -699,11 +714,11 @@ if __name__ == "__main__":
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"
                              "(checkpoints/..._segmentation/run_?).")
-    parser.add_argument('--version_number', default=5,
+    parser.add_argument('--version_number', default=6,
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="epoch=106-avg_train_loss=0.73.ckpt",
+    parser.add_argument('--checkpoint_file', default="epoch=108-avg_train_loss=0.73.ckpt",
                         help="The name of the checkpoint file you want to load.")
     parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")
