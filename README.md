@@ -53,7 +53,7 @@ Selected Dataset:
 
 - CAFFEE Dataset
 
-## 🚀 Step 2 — Reproducing Calving_Fronts_and_Where_to_Find_Them on CAFFEE
+## 🚀 Step 2 — Developing new ideas from Calving_Fronts_and_Where_to_Find_Them on CAFFEE
 
 Deep study of related paper and code, especially for:
 

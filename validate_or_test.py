@@ -138,7 +138,7 @@ def evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory):
     :param patch_directory: the directory in which the predicted image patches are going to be stored (this folder is deleted again after all calculations)
     :return: The average loss of the model on this dataset
     """
-    print("Evaluate Model on given dataset ...\n\n")
+    print("\n\nEvaluate Model on given dataset ...\n\n")
     model.eval()
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -189,7 +189,7 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
     :param directory_of_complete_targets_near: directory holding the ground truth for the near-front class (only for fronts)
     :return:
     """
-    print("Calculate segmentation metrics ...\n\n")
+    print("\n\nCalculate segmentation metrics ...\n\n")
     if target_mask_modality == "zones":
         list_of_ious = []
         list_of_precisions = []
@@ -340,11 +340,27 @@ def post_processing(target_masks, complete_predicted_masks, bounding_boxes_direc
 
 def calculate_front_delineation_metric(post_processed_predicted_masks, directory_of_target_fronts):
     """
-    Calculate distance errors
+    Calculate distance errors and corresponding statistics
     :param post_processed_predicted_masks: All file names of post-processed complete predictions
     :param directory_of_target_fronts: directory holding the complete ground truth fronts
     :return: a list of all distance errors, if a prediction does not show a single front pixel, that image is neglected
     """
+
+    """
+    1) front error detects pixel coordinates belonging to the front in both prediction and label. If one of those is empty, image is discarded
+
+    2) For each front predicted point compute distance to closest ground truth point distance1.
+       For each ground truth point compute distance to closest predicted point distance2.
+       The two distance series are concatenated.
+
+    3) The distances are multiplied with the image resolution to get distances in meters.
+
+    4) All distances of all images are concatenated to one big list of distances.
+
+    5) The mean of all distances is calculated and returned.
+    
+    """
+
     post_processed_predicted_masks = [f for f in post_processed_predicted_masks if f.endswith('_front.png')]
     list_of_all_front_errors = []
     number_of_images_with_no_predicted_front = 0
@@ -375,7 +391,9 @@ def calculate_front_delineation_metric(post_processed_predicted_masks, directory
                                             not np.isnan(front_error)]
     list_of_all_front_errors_without_nan = np.array(list_of_all_front_errors_without_nan)
     mean = np.mean(list_of_all_front_errors_without_nan)
+    mean_deviation = np.mean(np.abs(list_of_all_front_errors_without_nan - mean))
     print(f"Mean distance error: {mean}")
+    print(f"Mean deviation: {mean_deviation}")
     return list_of_all_front_errors_without_nan
 
 
@@ -406,12 +424,13 @@ def check_whether_winter_half_year(name):
 
 def front_delineation_metric(complete_postprocessed_directory, directory_of_target_fronts):
     """
-    Calculate the mean distance error (MDE) and break it up by glacier, season, resolution and satellite
+    Calculate front delineation statistics (MDE and mean deviation) and break them up by glacier,
+    season, resolution and satellite
     :param complete_postprocessed_directory: the directory holding the complete predicted and post-processed images
     :param directory_of_target_fronts: directory holding the complete ground truth fronts
     :return:
     """
-    print("Calculating distance errors ...\n\n")
+    print("\n\nCalculating distance errors ...\n\n")
     post_processed_predicted_masks = os.listdir(os.path.join(complete_postprocessed_directory))
 
     print("")
@@ -561,7 +580,7 @@ def visualizations(complete_postprocessed_directory,
     :param visualizations_dir: directory which is going to hold the visualizations
     :return:
     """
-    print("Creating visualizations ...\n\n")
+    print("\n\nCreating visualizations ...\n\n")
     post_processed_predicted_masks = [
         f
         for f in os.listdir(complete_postprocessed_directory)
@@ -670,7 +689,7 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     # ###############################################################################################
     # CONSTRUCT BINARIZED PREDICTIONS FROM PATCHES
     # ###############################################################################################
-    print("Constructing complete predictions from patches ...\n\n")
+    print("\n\nConstructing complete predictions from patches ...\n\n")
     reconstruct_from_patches_and_binarize(
         src_directory=patch_directory,
         dst_directory=complete_directory,
@@ -708,7 +727,7 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     post_processing(model.hparams.target_masks, complete_predicted_masks, bounding_boxes_directory)
 
     # ###############################################################################################
-    # CALCULATE FRONT DELINEATION METRIC (Mean distance error)
+    # CALCULATE FRONT DELINEATION METRIC (Mean distance error and mean deviation)
     # ###############################################################################################
     if mode == "test":
         directory_of_target_fronts = os.path.join(data_raw_dir, "fronts", 'test')
@@ -741,11 +760,11 @@ if __name__ == "__main__":
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"
                              "(checkpoints/..._segmentation/run_?).")
-    parser.add_argument('--version_number', default=6,
+    parser.add_argument('--version_number', default=11,
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="epoch=108-avg_train_loss=0.73.ckpt",
+    parser.add_argument('--checkpoint_file', default="epoch=400-avg_train_loss=0.67.ckpt",
                         help="The name of the checkpoint file you want to load.")
     parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")
