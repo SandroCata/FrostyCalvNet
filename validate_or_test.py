@@ -16,7 +16,7 @@ import re
 import cv2
 import numpy as np
 from scipy.spatial import distance
-from sklearn.metrics import precision_score, recall_score, f1_score, jaccard_score
+from sklearn.metrics import precision_score, recall_score, f1_score, jaccard_score, accuracy_score, confusion_matrix
 import skimage
 import shutil
 import builtins
@@ -69,6 +69,19 @@ def multi_class_metric(metric_function, complete_predicted_mask, complete_target
     metrics.append(metric_ocean)
     return metrics
 
+def multi_class_accuracy(complete_predicted_mask, complete_target):
+    """Calculate per-class and macro average accuracy for a multi-class task."""
+    metrics = []
+    flattened_pred = np.ndarray.flatten(complete_predicted_mask)
+    flattened_target = np.ndarray.flatten(complete_target)
+    labels = [0, 1, 2, 3]
+    cm = confusion_matrix(flattened_target, flattened_pred, labels=labels)
+    per_class_total = cm.sum(axis=1)
+    per_class_acc = np.divide(cm.diagonal(), per_class_total, out=np.zeros_like(per_class_total, dtype=float), where=per_class_total!=0)
+    metrics.append(per_class_acc.mean())
+    metrics.extend(per_class_acc.tolist())
+    return metrics
+
 
 def turn_colors_to_class_labels_zones(mask):
     mask_class_labels = np.copy(mask)
@@ -103,11 +116,12 @@ def print_front_metric(name, metric):
     print(f"Average {name}: {sum(metric) / len(metric)}")
 
 
-def get_matching_out_of_folder(file_name, folder):
+def get_matching_out_of_folder(file_name, folder, expected_suffix=None):
     """
     Find the file with the file_name that starts with the parameter file_name (minus .png)
     :param file_name: the searched file_name start
     :param folder: the folder which is to be searched
+    :param expected_suffix: optional suffix that the matching file should have
     :return: the file name in the folder that starts with the parameter file_name (minus .png)
     """
     folder = folder.replace("\\", os.sep)
@@ -115,7 +129,11 @@ def get_matching_out_of_folder(file_name, folder):
     files = os.listdir(folder)
     pattern_name = os.path.split(file_name)[1][:-4]
     pattern_name = re.sub(r'_(front|near)$', '', pattern_name)
-    matching_files = [a for a in files if re.match(pattern=pattern_name, string=os.path.split(a)[1])]
+    if expected_suffix is not None:
+        expected_name = f"{pattern_name}{expected_suffix}"
+        matching_files = [a for a in files if os.path.split(a)[1] == expected_name]
+    else:
+        matching_files = [a for a in files if os.path.split(a)[1].startswith(pattern_name)]
     if len(matching_files) > 1:
         print("Something went wrong!")
         print(f"targets_matching: {matching_files}")
@@ -195,6 +213,7 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
         list_of_precisions = []
         list_of_recalls = []
         list_of_f1_scores = []
+        list_of_accuracies = []
         precision = partial(precision_score, zero_division=0)
         recall = partial(recall_score, zero_division=0)
         f1 = partial(f1_score, zero_division=0)
@@ -212,24 +231,27 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
             list_of_precisions.append(multi_class_metric(precision, complete_predicted_mask_class_labels, complete_target_class_labels))
             list_of_recalls.append(multi_class_metric(recall, complete_predicted_mask_class_labels, complete_target_class_labels))
             list_of_f1_scores.append(multi_class_metric(f1, complete_predicted_mask_class_labels, complete_target_class_labels))
+            list_of_accuracies.append(multi_class_accuracy(complete_predicted_mask_class_labels, complete_target_class_labels))
         
         print_zone_metrics("Precision", list_of_precisions)
         print_zone_metrics("Recall", list_of_recalls)
         print_zone_metrics("F1 Score", list_of_f1_scores)
         print_zone_metrics("IoU", list_of_ious)
+        print_zone_metrics("Accuracy", list_of_accuracies)
     else:
         front_files = [f for f in complete_predicted_masks if f.endswith('_front.png')]
         near_files = [f for f in complete_predicted_masks if f.endswith('_near.png')]
-        metrics_front = {"iou": [], "precision": [], "recall": [], "f1": []}
-        metrics_near = {"iou": [], "precision": [], "recall": [], "f1": []}
-        for file_list, target_dir, metrics in [
-            (front_files, directory_of_complete_targets_front, metrics_front),
-            (near_files, directory_of_complete_targets_near, metrics_near)
+        metrics_front = {"iou": [], "precision": [], "recall": [], "f1": [], "accuracy": []}
+        metrics_near = {"iou": [], "precision": [], "recall": [], "f1": [], "accuracy": []}
+        for file_list, target_dir, metrics, expected_suffix in [
+            (front_files, directory_of_complete_targets_front, metrics_front, "_front.png"),
+            (near_files, directory_of_complete_targets_near, metrics_near, "_near_front.png"),
+
         ]:
             for file_name in file_list:
                 print(f"File: {file_name}")
                 complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
-                matching_target_file = get_matching_out_of_folder(file_name, target_dir)
+                matching_target_file = get_matching_out_of_folder(file_name, target_dir, expected_suffix=expected_suffix)
                 complete_target = cv2.imread(os.path.join(target_dir, matching_target_file).__str__(), cv2.IMREAD_GRAYSCALE)
                 if complete_predicted_mask.shape != complete_target.shape:
                     complete_predicted_mask, complete_target = crop_to_same_shape(complete_predicted_mask, complete_target)
@@ -259,16 +281,24 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
                         zero_division=0,
                     )
                 )
+                metrics["accuracy"].append(
+                    accuracy_score(
+                        flattened_complete_target_class_labels,
+                        flattened_complete_predicted_mask_class_labels,
+                    )
+                )
         print("\nFront:")
         print_front_metric("Precision", metrics_front["precision"])
         print_front_metric("Recall", metrics_front["recall"])
         print_front_metric("F1 Score", metrics_front["f1"])
         print_front_metric("IoU", metrics_front["iou"])
+        print_front_metric("Accuracy", metrics_front["accuracy"])
         print("\nNear-Front:")
         print_front_metric("Precision", metrics_near["precision"])
         print_front_metric("Recall", metrics_near["recall"])
         print_front_metric("F1 Score", metrics_near["f1"])
         print_front_metric("IoU", metrics_near["iou"])
+        print_front_metric("Accuracy", metrics_near["accuracy"])
 
 
 def mask_prediction_with_bounding_box(post_complete_predicted_mask, file_name, bounding_boxes_directory):
@@ -378,7 +408,10 @@ def calculate_front_delineation_metric(
             os.path.join(complete_postprocessed_directory, file_name).__str__(),
             cv2.IMREAD_GRAYSCALE,
         )
-        matching_target_file = get_matching_out_of_folder(file_name, directory_of_target_fronts)
+        expected_suffix = "_near_front.png" if file_name.endswith("_near.png") else "_front.png"
+        matching_target_file = get_matching_out_of_folder(
+            file_name, directory_of_target_fronts, expected_suffix=expected_suffix
+        )
         target_front = cv2.imread(
             os.path.join(directory_of_target_fronts, matching_target_file).__str__(),
             cv2.IMREAD_GRAYSCALE,
@@ -738,10 +771,12 @@ def visualizations(complete_postprocessed_directory,
     for file_name in post_processed_predicted_masks:
         if file_name.endswith('_front.png'):
             target_dir = directory_of_target_fronts
+            expected_suffix = "_front.png"
         else:  # '_near.png'
             if directory_of_target_near_fronts is None or not os.path.isdir(directory_of_target_near_fronts):
                 continue
             target_dir = directory_of_target_near_fronts
+            expected_suffix = "_near_front.png"
         name = os.path.split(file_name)[1][:-4]
         name = re.sub(r'_(front|near)$', '', name)
         resolution = int(name.split('_')[-3])
@@ -754,7 +789,7 @@ def visualizations(complete_postprocessed_directory,
             os.path.join(complete_postprocessed_directory, file_name).__str__(),
             cv2.IMREAD_GRAYSCALE,
         )
-        matching_target_file = get_matching_out_of_folder(file_name, target_dir)
+        matching_target_file = get_matching_out_of_folder(file_name, target_dir, expected_suffix=expected_suffix)
         target_mask = cv2.imread(
             os.path.join(target_dir, matching_target_file).__str__(),
             cv2.IMREAD_GRAYSCALE,
