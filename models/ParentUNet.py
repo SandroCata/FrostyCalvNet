@@ -156,10 +156,11 @@ class UNet(pl.LightningModule):
                     precision_list.append(precision)
                     recall_list.append(recall)
                     f1_list.append(f1)
+                    acc_list.append(acc)
                 precision = torch.stack(precision_list).mean()
                 recall = torch.stack(recall_list).mean()
                 f1 = torch.stack(f1_list).mean()
-                acc_list.append(acc)
+                accuracy = torch.stack(acc_list).mean()
 
         return precision, recall, f1, accuracy
 
