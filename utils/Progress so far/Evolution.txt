@@ -1,0 +1,16 @@
+
+MK0 -----------------
+
+
+1) Starting from Calving Fronts and Where to Find them (study and reproduction of paper work).
+
+2) Analysis of results to start implementing new ideas and characteristics for improvement.
+
+MK1 -----------------
+
+
+3) Double Prediction: front and near-front output.
+
+4) Adjusting preprocessing phase: deleting thickening and adding near-front masks creation from raw data
+
+5) Filtering dataset on an arbitrary percentage of empty images-masks.
