@@ -6,7 +6,8 @@ MK0 -----------------
 
 2) Analysis of results to start implementing new ideas and characteristics for improvement.
 
-MK1 -----------------
+
+MK1.0 -----------------
 
 
 3) Double Prediction: front and near-front output.
@@ -14,3 +15,18 @@ MK1 -----------------
 4) Adjusting preprocessing phase: deleting thickening and adding near-front masks creation from raw data
 
 5) Filtering dataset on an arbitrary percentage of empty images-masks.
+
+
+MK1.1 -----------------
+
+
+6) Adjusting preprocessing phase: deleting thickening and adding near-front masks creation from raw data (here 3x3 front mask - front mask)
+
+7) Filtering dataset on an arbitrary percentage of empty images-masks. (deletion of 90% empty images)
+
+MK1.2 -----------------
+
+
+8) Adjusting preprocessing phase: deleting thickening and adding near-front masks creation from raw data (here 7x7 front mask - 3x3 front mask)
+
+9) Filtering dataset on an arbitrary percentage of empty images-masks. (deletion of 80% empty images)

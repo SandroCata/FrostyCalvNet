@@ -6,16 +6,17 @@ import cv2
 import numpy as np
 
 
-def thicken_fronts(mask: np.ndarray) -> np.ndarray:
+def thicken_fronts(mask: np.ndarray, x: int) -> np.ndarray:
     """Dilate front label with a 3x3 kernel."""
-    kernel = np.ones((3, 3), np.uint8)
+    kernel = np.ones((x, x), np.uint8)
     return cv2.dilate(mask, kernel, iterations=1)
 
 
 def highlight_near_fronts(mask: np.ndarray) -> np.ndarray:
     """Create mask of near-front pixels."""
-    mask_line_pad = thicken_fronts(mask)
-    mask_highlight = cv2.subtract(mask_line_pad, mask)
+    mask_line_pad_1 = thicken_fronts(mask, 7)
+    mask_line_pad_2 = thicken_fronts(mask, 3)
+    mask_highlight = cv2.subtract(mask_line_pad_1, mask_line_pad_2)
     mask_highlight[mask_highlight > 0] = 255
     return mask_highlight
 
@@ -51,4 +52,6 @@ if __name__ == "__main__":
         help="Directory containing the raw data (default: 'data_raw').",
     )
     args = parser.parse_args()
+    print("Generating near-front masks...")
     generate_near_front_masks(args.raw_data_dir)
+    print("Near-front masks generated successfully.")
