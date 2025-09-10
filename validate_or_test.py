@@ -179,7 +179,7 @@ def evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory):
                 "the images are loaded correctly."
             y_hat = model.give_prediction_for_batch(batch_with_batch_shape)
             loss, metric = model.calc_loss(y_hat, y.to(device))
-            losses.append(loss)
+            losses.append(loss.item())
 
             # Take sigmoid of prediction to get probabilities from logits and save probabilities in files
             y_hat = torch.sigmoid(y_hat)
@@ -192,8 +192,9 @@ def evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory):
                 with open(os.path.join(patch_directory, base_name + "_near.png"), "wb") as fp:
                     pickle.dump(near_map, fp)
 
-        average_loss = (sum(losses) / len(losses)).item()
-        return average_loss
+        average_loss = sum(losses) / len(losses)
+        return average_loss, losses
+
 
 
 def calculate_segmentation_metrics(target_mask_modality, complete_predicted_masks, complete_directory,
@@ -771,12 +772,23 @@ def visualizations(complete_postprocessed_directory,
     for file_name in post_processed_predicted_masks:
         if file_name.endswith('_front.png'):
             target_dir = directory_of_target_fronts
-            expected_suffix = "_front.png"
+            matching_target_file = get_matching_out_of_folder(
+                file_name, target_dir, expected_suffix="_front.png"
+            )
         else:  # '_near.png'
-            if directory_of_target_near_fronts is None or not os.path.isdir(directory_of_target_near_fronts):
+            if (
+                directory_of_target_near_fronts is None
+                or not os.path.isdir(directory_of_target_near_fronts)
+            ):
                 continue
             target_dir = directory_of_target_near_fronts
-            expected_suffix = "_near_front.png"
+            near_gt_name = file_name.replace('_near.png', '_near_front.png')
+            if os.path.exists(os.path.join(target_dir, near_gt_name)):
+                matching_target_file = near_gt_name
+            else:
+                matching_target_file = get_matching_out_of_folder(
+                    file_name, target_dir, expected_suffix="_near_front.png"
+                )
         name = os.path.split(file_name)[1][:-4]
         name = re.sub(r'_(front|near)$', '', name)
         resolution = int(name.split('_')[-3])
@@ -789,7 +801,6 @@ def visualizations(complete_postprocessed_directory,
             os.path.join(complete_postprocessed_directory, file_name).__str__(),
             cv2.IMREAD_GRAYSCALE,
         )
-        matching_target_file = get_matching_out_of_folder(file_name, target_dir, expected_suffix=expected_suffix)
         target_mask = cv2.imread(
             os.path.join(target_dir, matching_target_file).__str__(),
             cv2.IMREAD_GRAYSCALE,
@@ -867,7 +878,7 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     # #############################################################################################################
     # EVALUATE MODEL ON GIVEN DATASET
     # #############################################################################################################
-    average_loss = evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory)
+    average_loss, losses = evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory)
     print(f"Average Loss: {average_loss}")
 
     # ###############################################################################################

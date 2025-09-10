@@ -11,9 +11,46 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 import time
 import torch
 import os
-from pytorch_lightning.callbacks import LearningRateMonitor
+from pytorch_lightning.callbacks import LearningRateMonitor, Callback
 #from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import builtins
+import matplotlib.pyplot as plt
+
+
+class LossHistory(Callback):
+    """Callback to record and plot loss curves."""
+
+    def __init__(self):
+        self.train_losses = []
+        self.val_losses = []
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        loss = trainer.callback_metrics.get('avg_train_loss')
+        if loss is not None:
+            self.train_losses.append(loss.detach().cpu().item())
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        loss = trainer.callback_metrics.get('avg_loss_validation')
+        if loss is not None:
+            self.val_losses.append(loss.detach().cpu().item())
+
+    def on_fit_end(self, trainer, pl_module):
+        if not self.train_losses:
+            return
+        epochs = range(1, len(self.train_losses) + 1)
+        plt.figure()
+        plt.plot(epochs, self.train_losses, label='Train Loss')
+        if self.val_losses:
+            plt.plot(epochs[:len(self.val_losses)], self.val_losses, label='Validation Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.xticks(epochs)
+        plt.legend()
+        plt.title('Loss over Epochs')
+        log_dir = getattr(trainer.logger, 'log_dir', None)
+        if log_dir:
+            plt.savefig(os.path.join(log_dir, 'loss.png'))
+        plt.close()
 
 
 def main(hparams, run_number, running_mode):
@@ -45,6 +82,9 @@ def main(hparams, run_number, running_mode):
     logger = TensorBoardLogger(tb_logs_dir, name="log", default_hp_metric=False)
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
+    loss_history = LossHistory()
+    callbacks = [checkpoint_callback, lr_monitor, loss_history]
+
 
     # if we have already trained this model take up the training at the last checkpoint
     latest_ckpt_path = None
@@ -68,7 +108,7 @@ def main(hparams, run_number, running_mode):
         new_max_epochs = ckpt.get("epoch", 0) + hparams.epochs
         trainer = Trainer(
             resume_from_checkpoint=latest_ckpt_path,
-            callbacks=[checkpoint_callback, lr_monitor],
+            callbacks=callbacks,
             deterministic=True,
             gpus=1,  # Train on gpu
             gradient_clip_val=clip_norm,
@@ -81,7 +121,7 @@ def main(hparams, run_number, running_mode):
             # Try to overfit on some batches
             trainer = Trainer.from_argparse_args(
                 hparams,
-                callbacks=[checkpoint_callback, lr_monitor],
+                callbacks=callbacks,
                 deterministic=True,
                 fast_dev_run=False,
                 flush_logs_every_n_steps=100,
@@ -96,7 +136,7 @@ def main(hparams, run_number, running_mode):
             # Debugging mode
             trainer = Trainer.from_argparse_args(
                 hparams,
-                callbacks=[checkpoint_callback, lr_monitor],
+                callbacks=callbacks,
                 deterministic=True,
                 fast_dev_run=3,
                 flush_logs_every_n_steps=100,
@@ -109,7 +149,7 @@ def main(hparams, run_number, running_mode):
             # Training mode
             trainer = Trainer.from_argparse_args(
                 hparams,
-                callbacks=[checkpoint_callback, lr_monitor],
+                callbacks=callbacks,
                 deterministic=True,
                 gpus=1,  # Train on gpu
                 gradient_clip_val=clip_norm,
@@ -162,7 +202,7 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=100, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=2, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "
