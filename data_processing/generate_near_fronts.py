@@ -14,9 +14,8 @@ def thicken_fronts(mask: np.ndarray, x: int) -> np.ndarray:
 
 def highlight_near_fronts(mask: np.ndarray) -> np.ndarray:
     """Create mask of near-front pixels."""
-    mask_line_pad_1 = thicken_fronts(mask, 7)
-    mask_line_pad_2 = thicken_fronts(mask, 3)
-    mask_highlight = cv2.subtract(mask_line_pad_1, mask_line_pad_2)
+    mask_line_pad_1 = thicken_fronts(mask, 3)
+    mask_highlight = cv2.subtract(mask_line_pad_1, mask)
     mask_highlight[mask_highlight > 0] = 255
     return mask_highlight
 

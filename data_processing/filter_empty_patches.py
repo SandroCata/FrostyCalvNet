@@ -62,7 +62,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--keep_ratio",
         type=float,
-        default=0.2,
+        default=0.1,
         help="Fraction of empty patches to keep as negatives",
     )
     args = parser.parse_args()
