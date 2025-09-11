@@ -15,7 +15,7 @@ import torch
 import re
 import cv2
 import numpy as np
-from scipy.spatial import distance
+from scipy.spatial import distance, cKDTree
 from sklearn.metrics import precision_score, recall_score, f1_score, jaccard_score, accuracy_score, confusion_matrix
 import skimage
 import shutil
@@ -44,8 +44,11 @@ def front_error(prediction, label):
         return front_is_present_flag, np.nan
 
     # Generate the pairwise distances between each point and the closest point in the other array
-    distances1 = distance.cdist(pred_coords, mask_coords).min(axis=1)
-    distances2 = distance.cdist(mask_coords, pred_coords).min(axis=1)
+    # Use KDTree to avoid allocating huge pairwise distance matrices
+    tree_pred = cKDTree(pred_coords)
+    tree_mask = cKDTree(mask_coords)
+    distances1 = tree_mask.query(pred_coords, k=1)[0]
+    distances2 = tree_pred.query(mask_coords, k=1)[0]
     distances = np.concatenate((distances1, distances2))
 
     return front_is_present_flag, distances
@@ -879,7 +882,7 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     # EVALUATE MODEL ON GIVEN DATASET
     # #############################################################################################################
     average_loss, losses = evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory)
-    print(f"Average Loss: {average_loss}")
+    print(f"\nAverage Loss: {average_loss}")
 
     # ###############################################################################################
     # CONSTRUCT BINARIZED PREDICTIONS FROM PATCHES
