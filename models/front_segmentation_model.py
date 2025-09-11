@@ -5,9 +5,8 @@ import torch
 #import torchmetrics
 from einops import rearrange
 import numpy as np
-import cv2
-from segmentation_models_pytorch.losses.dice import DiceLoss
-from segmentation_models_pytorch.losses import FocalLoss
+import cv2 
+from segmentation_models_pytorch.losses import FocalLoss, DiceLoss
 
 
 class DistanceMapBCE(nn.Module):
@@ -108,8 +107,8 @@ class FrontUNet(UNet):
         focal_criterion = FocalLoss('binary', gamma=self.gamma, alpha=self.alpha)
         loss_front = dmap_criterion(y_hat[:, 0], y[:, 0])
         loss_near = focal_criterion(
-            y_hat[:, 1].contiguous(),
-            y[:, 1].contiguous(),
+            y_hat[:, 1:2].contiguous(),
+            y[:, 1:2].contiguous(),
         )
         loss = (loss_front + loss_near) / 2
         return loss, self.class_wise_iou(y_hat, y)
