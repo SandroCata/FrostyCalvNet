@@ -7,6 +7,7 @@ from einops import rearrange
 import numpy as np
 import cv2
 from segmentation_models_pytorch.losses.dice import DiceLoss
+from segmentation_models_pytorch.losses import FocalLoss
 
 
 class DistanceMapBCE(nn.Module):
@@ -50,6 +51,8 @@ class FrontUNet(UNet):
         self.w = hparams["w"]
         self.k = hparams["k"]
         self.relax = hparams["relax"]
+        self.gamma = hparams["gamma"]
+        self.alpha = hparams.get("alpha", None)
 
     def adapt_mask(self, y):
         return y.type(torch.float32)
@@ -101,9 +104,13 @@ class FrontUNet(UNet):
 
     def calc_loss(self, y_hat, y):
         y = self.adapt_mask(y)
-        criterion = DistanceMapBCE(self.device, w=self.w, k=self.k, relax=self.relax)
-        loss_front = criterion(y_hat[:, 0], y[:, 0])
-        loss_near = criterion(y_hat[:, 1], y[:, 1])
+        dmap_criterion = DistanceMapBCE(self.device, w=self.w, k=self.k, relax=self.relax)
+        focal_criterion = FocalLoss('binary', gamma=self.gamma, alpha=self.alpha)
+        loss_front = dmap_criterion(y_hat[:, 0], y[:, 0])
+        loss_near = focal_criterion(
+            y_hat[:, 1].contiguous(),
+            y[:, 1].contiguous(),
+        )
         loss = (loss_front + loss_near) / 2
         return loss, self.class_wise_iou(y_hat, y)
 
@@ -114,6 +121,8 @@ class FrontUNet(UNet):
         parser.add_argument('--max_lr', default=5e-4)
         parser.add_argument('--batch_size', default=16)
         parser.add_argument('--kernel_size', type=int, default=3)
+        parser.add_argument('--gamma', default=1.0, type=float, help="Gamma parameter for FocalLoss used for near segmentation")
+        parser.add_argument('--alpha', default=0.9, type=float, help="Alpha parameter for FocalLoss used for near segmentation")
 
         # Loss arguments
         parser.add_argument('--k', default=0.1, type=float, help="Parameter for the distance map-based loss for front segmentation")
