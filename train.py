@@ -53,7 +53,7 @@ class LossHistory(Callback):
         plt.close()
 
 
-def main(hparams, run_number, running_mode):
+def main(hparams, run_number, running_mode, version_number):
     if hparams.target_masks == "zones":
         checkpoint_dir = os.path.join('checkpoints', 'zones_segmentation', 'run_' + str(run_number))
         tb_logs_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(run_number))
@@ -79,7 +79,7 @@ def main(hparams, run_number, running_mode):
         )
         clip_norm = 1.0
 
-    logger = TensorBoardLogger(tb_logs_dir, name="log", default_hp_metric=False)
+    logger = TensorBoardLogger(tb_logs_dir, name="log", version=version_number, default_hp_metric=False)
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
     loss_history = LossHistory()
@@ -202,7 +202,7 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=15, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=50, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "
@@ -226,9 +226,20 @@ if __name__ == '__main__':
     hparams = parser.parse_args()
 
     if hparams.target_masks == "zones":
-        log_dir = os.path.join('checkpoints', 'zones_segmentation', 'run_' + str(hparams.run_number))
+        base_log_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(hparams.run_number), 'log')
     else:
-        log_dir = os.path.join('checkpoints', 'fronts_segmentation', 'run_' + str(hparams.run_number))
+        base_log_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(hparams.run_number), 'log')
+
+    os.makedirs(base_log_dir, exist_ok=True)
+    existing_versions = [d for d in os.listdir(base_log_dir) if d.startswith('version_')]
+    if existing_versions:
+        version_numbers = [int(d.split('_')[-1]) for d in existing_versions if d.split('_')[-1].isdigit()]
+        version_number = max(version_numbers) + 1 if version_numbers else 0
+    else:
+        version_number = 0
+
+    log_dir = os.path.join(base_log_dir, f'version_{version_number}')
+
     os.makedirs(log_dir, exist_ok=True)
     log_file_path = os.path.join(log_dir, "log.txt")
     log_file = open(log_file_path, "w")
@@ -250,7 +261,7 @@ if __name__ == '__main__':
             "Please set --training_mode correctly. Either 'training' or 'debugging' or 'batch_overfit'."
 
         start_save = time.time()
-        main(hparams, hparams.run_number, hparams.training_mode)
+        main(hparams, hparams.run_number, hparams.training_mode, version_number)
         end_save = time.time()
         print(f"Total time for training: {(end_save - start_save)/60:.2f} minutes")
     finally:
