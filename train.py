@@ -16,6 +16,18 @@ from pytorch_lightning.callbacks import LearningRateMonitor, Callback
 import builtins
 import matplotlib.pyplot as plt
 
+class OneBasedModelCheckpoint(ModelCheckpoint):
+    """ModelCheckpoint that labels epochs starting from 1 instead of 0."""
+
+    def format_checkpoint_name(self, metrics, filename=None, ver=None):
+        metrics = {**metrics}
+        if "epoch" in metrics:
+            try:
+                metrics["epoch"] = int(metrics["epoch"]) + 1
+            except Exception:
+                pass
+        return super().format_checkpoint_name(metrics, filename, ver)
+
 
 class LossHistory(Callback):
     """Callback to record and plot loss curves."""
@@ -44,7 +56,7 @@ class LossHistory(Callback):
             plt.plot(epochs[:len(self.val_losses)], self.val_losses, label='Validation Loss')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
-        plt.xticks(epochs)
+        #plt.xticks(epochs)
         plt.legend()
         plt.title('Loss over Epochs')
         log_dir = getattr(trainer.logger, 'log_dir', None)
@@ -57,7 +69,7 @@ def main(hparams, run_number, running_mode, version_number):
     if hparams.target_masks == "zones":
         checkpoint_dir = os.path.join('checkpoints', 'zones_segmentation', 'run_' + str(run_number))
         tb_logs_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(run_number))
-        checkpoint_callback = ModelCheckpoint(
+        checkpoint_callback = OneBasedModelCheckpoint(
             dirpath=checkpoint_dir,
             filename='{epoch:02d}-{avg_train_loss:.2f}',
             monitor='avg_train_loss',
@@ -69,7 +81,7 @@ def main(hparams, run_number, running_mode, version_number):
     else:
         checkpoint_dir = os.path.join('checkpoints', 'fronts_segmentation', 'run_' + str(run_number))
         tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(run_number))
-        checkpoint_callback = ModelCheckpoint(
+        checkpoint_callback = OneBasedModelCheckpoint(
             dirpath=checkpoint_dir,
             filename='{epoch:02d}-{avg_train_loss:.2f}',
             monitor='avg_train_loss',
@@ -202,7 +214,7 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=50, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=100, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "

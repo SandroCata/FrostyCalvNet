@@ -52,6 +52,9 @@ class FrontUNet(UNet):
         self.relax = hparams["relax"]
         self.gamma = hparams["gamma"]
         self.alpha = hparams.get("alpha", None)
+        self.near_loss_focal_weight = hparams.get("near_loss_focal_weight", 0.5)
+        self.near_loss_dice_weight = hparams.get("near_loss_dice_weight", 0.5)
+        self.dice_near = DiceLoss(mode="binary")
 
     def adapt_mask(self, y):
         return y.type(torch.float32)
@@ -106,9 +109,11 @@ class FrontUNet(UNet):
         dmap_criterion = DistanceMapBCE(self.device, w=self.w, k=self.k, relax=self.relax)
         focal_criterion = FocalLoss('binary', gamma=self.gamma, alpha=self.alpha)
         loss_front = dmap_criterion(y_hat[:, 0], y[:, 0])
-        loss_near = focal_criterion(
-            y_hat[:, 1:2].contiguous(),
-            y[:, 1:2].contiguous(),
+        loss_near_focal = focal_criterion(y_hat[:, 1:2], y[:, 1:2])
+        loss_near_dice = self.dice_near(y_hat[:, 1:2], y[:, 1:2])
+        loss_near = (
+            self.near_loss_focal_weight * loss_near_focal
+            + self.near_loss_dice_weight * loss_near_dice
         )
         loss = (loss_front + loss_near) / 2
         return loss, self.class_wise_iou(y_hat, y)
@@ -122,6 +127,8 @@ class FrontUNet(UNet):
         parser.add_argument('--kernel_size', type=int, default=3)
         parser.add_argument('--gamma', default=1.0, type=float, help="Gamma parameter for FocalLoss used for near segmentation")
         parser.add_argument('--alpha', default=0.9, type=float, help="Alpha parameter for FocalLoss used for near segmentation")
+        parser.add_argument('--near_loss_focal_weight', default=0.5, type=float, help="Weight for FocalLoss component of near segmentation loss")
+        parser.add_argument('--near_loss_dice_weight', default=0.5, type=float, help="Weight for DiceLoss component of near segmentation loss")
 
         # Loss arguments
         parser.add_argument('--k', default=0.1, type=float, help="Parameter for the distance map-based loss for front segmentation")

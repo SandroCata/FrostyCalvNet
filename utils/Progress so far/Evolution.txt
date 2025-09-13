@@ -24,9 +24,9 @@ MK1.1 -----------------
 
 7) Filtering dataset on an arbitrary percentage of empty images-masks. (deletion of 90% empty images)
 
+8) Loss on both prediction is DistanceMapBCE
+
 MK1.2 -----------------
 
 
-8) Adjusting preprocessing phase: deleting thickening and adding near-front masks creation from raw data (here 7x7 front mask - 3x3 front mask)
-
-9) Filtering dataset on an arbitrary percentage of empty images-masks. (deletion of 80% empty images)
+9) Extended MK1 by replacing the loss function of near_front prediction: DistanceMapBCE -> Focal Loss (alpha = 0.9, gamma = 1.0)
