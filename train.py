@@ -8,6 +8,25 @@ from pytorch_lightning.loggers import TensorBoardLogger
 import sys
 from torchsummary import summary
 from pytorch_lightning.callbacks import ModelCheckpoint
+
+# Progress bar callback changed locations across Lightning versions.
+# Try importing the modern `TQDMProgressBar` and fall back to the legacy
+# `ProgressBar` if necessary so training works with older releases like 1.3.x.
+try:  # pragma: no cover - depends on installed Lightning version
+    from pytorch_lightning.callbacks import TQDMProgressBar as _BaseProgressBar
+except Exception:  # older Lightning (<1.4) exposes only `ProgressBar`
+    try:  # pragma: no cover - legacy import path
+        from pytorch_lightning.callbacks import ProgressBar as _BaseProgressBar
+    except Exception:  # pragma: no cover - very old versions
+        try:
+            from pytorch_lightning.callbacks.progress import TQDMProgressBar as _BaseProgressBar
+        except Exception:  # pragma: no cover
+            try:
+                from pytorch_lightning.callbacks.progress import ProgressBar as _BaseProgressBar
+            except Exception:  # pragma: no cover - give up
+                _BaseProgressBar = None
+
+
 import time
 import torch
 import os
@@ -19,14 +38,38 @@ import matplotlib.pyplot as plt
 class OneBasedModelCheckpoint(ModelCheckpoint):
     """ModelCheckpoint that labels epochs starting from 1 instead of 0."""
 
-    def format_checkpoint_name(self, metrics, filename=None, ver=None):
+    def format_checkpoint_name(self, metrics, filename=None, **kwargs):
         metrics = {**metrics}
         if "epoch" in metrics:
             try:
                 metrics["epoch"] = int(metrics["epoch"]) + 1
             except Exception:
                 pass
-        return super().format_checkpoint_name(metrics, filename, ver)
+        return super().format_checkpoint_name(metrics, filename, **kwargs)
+    
+if _BaseProgressBar is not None:
+    class OneBasedProgressBar(_BaseProgressBar):
+        """Progress bar that displays epochs starting from 1."""
+
+        def on_train_epoch_start(self, trainer, pl_module):
+            super().on_train_epoch_start(trainer, pl_module)
+            bar = getattr(self, "main_progress_bar", None)
+            if bar is not None:
+                try:
+                    bar.set_description(f"Epoch {trainer.current_epoch + 1}")
+                except Exception:  # pragma: no cover - tqdm internals
+                    pass
+
+        def get_metrics(self, trainer, model):  # pragma: no cover - only for newer Lightning
+            base_metrics = getattr(super(), "get_metrics", None)
+            if base_metrics is None:
+                return {}
+            items = base_metrics(trainer, model)
+            if "epoch" in items:
+                items["epoch"] = trainer.current_epoch + 1
+            return items
+else:  # pragma: no cover - Lightning without progress bar support
+    OneBasedProgressBar = None
 
 
 class LossHistory(Callback):
@@ -91,11 +134,15 @@ def main(hparams, run_number, running_mode, version_number):
         )
         clip_norm = 1.0
 
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    os.makedirs(tb_logs_dir, exist_ok=True)
     logger = TensorBoardLogger(tb_logs_dir, name="log", version=version_number, default_hp_metric=False)
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
     loss_history = LossHistory()
     callbacks = [checkpoint_callback, lr_monitor, loss_history]
+    if OneBasedProgressBar is not None:
+        callbacks.append(OneBasedProgressBar())
 
 
     # if we have already trained this model take up the training at the last checkpoint
@@ -214,7 +261,7 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=100, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=2, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "
@@ -246,9 +293,9 @@ if __name__ == '__main__':
     existing_versions = [d for d in os.listdir(base_log_dir) if d.startswith('version_')]
     if existing_versions:
         version_numbers = [int(d.split('_')[-1]) for d in existing_versions if d.split('_')[-1].isdigit()]
-        version_number = max(version_numbers) + 1 if version_numbers else 0
+        version_number = max(version_numbers) + 1 if version_numbers else 1
     else:
-        version_number = 0
+        version_number = 1
 
     log_dir = os.path.join(base_log_dir, f'version_{version_number}')
 

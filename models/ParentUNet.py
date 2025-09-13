@@ -189,20 +189,20 @@ class UNet(pl.LightningModule):
         # calculating average loss
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         # logging using tensorboard logger and for callbacks
-        self.logger.experiment.add_scalar("Loss/Train", avg_loss, self.current_epoch)
+        self.logger.experiment.add_scalar("Loss/Train", avg_loss, self.current_epoch + 1)
         self.log('avg_train_loss', avg_loss)
         metrics = self.log_metric(outputs, "Train")
         avg_precision = torch.stack([x['Precision'] for x in outputs]).mean()
         avg_recall = torch.stack([x['Recall'] for x in outputs]).mean()
         avg_f1 = torch.stack([x['F1'] for x in outputs]).mean()
         avg_accuracy = torch.stack([x['Accuracy'] for x in outputs]).mean()
-        self.logger.experiment.add_scalar("Metrics/Train/Precision", avg_precision, self.current_epoch)
-        self.logger.experiment.add_scalar("Metrics/Train/Recall", avg_recall, self.current_epoch)
-        self.logger.experiment.add_scalar("Metrics/Train/F1", avg_f1, self.current_epoch)
-        self.logger.experiment.add_scalar("Metrics/Train/Accuracy", avg_accuracy, self.current_epoch)
+        self.logger.experiment.add_scalar("Metrics/Train/Precision", avg_precision, self.current_epoch + 1)
+        self.logger.experiment.add_scalar("Metrics/Train/Recall", avg_recall, self.current_epoch + 1)
+        self.logger.experiment.add_scalar("Metrics/Train/F1", avg_f1, self.current_epoch+ 1)
+        self.logger.experiment.add_scalar("Metrics/Train/Accuracy", avg_accuracy, self.current_epoch + 1)
         metrics.update({"Precision": avg_precision, "Recall": avg_recall, "F1": avg_f1, "Accuracy": avg_accuracy})
         metric_string = ", ".join([f"{name}: {value:.4f}" for name, value in metrics.items()])
-        print(f"\nEpoch {self.current_epoch} - Train loss: {avg_loss:.4f}, {metric_string}")
+        print(f"\nEpoch {self.current_epoch + 1} - Train loss: {avg_loss:.4f}, {metric_string}")
 
     def validation_step(self, batch, batch_idx):
         x, y, x_name, y_names = batch
@@ -221,16 +221,16 @@ class UNet(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        self.logger.experiment.add_scalar("Loss/Val", avg_loss, self.current_epoch)
+        self.logger.experiment.add_scalar("Loss/Val", avg_loss, self.current_epoch + 1)
         self.log_metric(outputs, "Val")
         avg_precision = torch.stack([x['Precision'] for x in outputs]).mean()
         avg_recall = torch.stack([x['Recall'] for x in outputs]).mean()
         avg_f1 = torch.stack([x['F1'] for x in outputs]).mean()
         avg_accuracy = torch.stack([x['Accuracy'] for x in outputs]).mean()
-        self.logger.experiment.add_scalar("Metrics/Val/Precision", avg_precision, self.current_epoch)
-        self.logger.experiment.add_scalar("Metrics/Val/Recall", avg_recall, self.current_epoch)
-        self.logger.experiment.add_scalar("Metrics/Val/F1", avg_f1, self.current_epoch)
-        self.logger.experiment.add_scalar("Metrics/Val/Accuracy", avg_accuracy, self.current_epoch)
+        self.logger.experiment.add_scalar("Metrics/Val/Precision", avg_precision, self.current_epoch + 1)
+        self.logger.experiment.add_scalar("Metrics/Val/Recall", avg_recall, self.current_epoch + 1)
+        self.logger.experiment.add_scalar("Metrics/Val/F1", avg_f1, self.current_epoch + 1)
+        self.logger.experiment.add_scalar("Metrics/Val/Accuracy", avg_accuracy, self.current_epoch + 1)
         self.log('avg_loss_validation', avg_loss)
 
     def test_step(self, batch, batch_idx):
@@ -251,16 +251,16 @@ class UNet(pl.LightningModule):
     def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         # logging using tensorboard logger
-        self.logger.experiment.add_scalar("Loss/Test", avg_loss, self.current_epoch)
+        self.logger.experiment.add_scalar("Loss/Test", avg_loss, self.current_epoch + 1)
         self.log_metric(outputs, "Test")
         avg_precision = torch.stack([x['Precision'] for x in outputs]).mean()
         avg_recall = torch.stack([x['Recall'] for x in outputs]).mean()
         avg_f1 = torch.stack([x['F1'] for x in outputs]).mean()
         avg_accuracy = torch.stack([x['Accuracy'] for x in outputs]).mean()
-        self.logger.experiment.add_scalar("Metrics/Test/Precision", avg_precision, self.current_epoch)
-        self.logger.experiment.add_scalar("Metrics/Test/Recall", avg_recall, self.current_epoch)
-        self.logger.experiment.add_scalar("Metrics/Test/F1", avg_f1, self.current_epoch)
-        self.logger.experiment.add_scalar("Metrics/Test/Accuracy", avg_accuracy, self.current_epoch)
+        self.logger.experiment.add_scalar("Metrics/Test/Precision", avg_precision, self.current_epoch + 1)
+        self.logger.experiment.add_scalar("Metrics/Test/Recall", avg_recall, self.current_epoch + 1)
+        self.logger.experiment.add_scalar("Metrics/Test/F1", avg_f1, self.current_epoch + 1)
+        self.logger.experiment.add_scalar("Metrics/Test/Accuracy", avg_accuracy, self.current_epoch + 1)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters())

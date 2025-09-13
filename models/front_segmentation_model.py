@@ -109,8 +109,11 @@ class FrontUNet(UNet):
         dmap_criterion = DistanceMapBCE(self.device, w=self.w, k=self.k, relax=self.relax)
         focal_criterion = FocalLoss('binary', gamma=self.gamma, alpha=self.alpha)
         loss_front = dmap_criterion(y_hat[:, 0], y[:, 0])
-        loss_near_focal = focal_criterion(y_hat[:, 1:2], y[:, 1:2])
-        loss_near_dice = self.dice_near(y_hat[:, 1:2], y[:, 1:2])
+        # ensure contiguous tensors for loss functions expecting contiguous memory
+        near_pred = y_hat[:, 1:2].contiguous()
+        near_true = y[:, 1:2].contiguous()
+        loss_near_focal = focal_criterion(near_pred, near_true)
+        loss_near_dice = self.dice_near(near_pred, near_true)
         loss_near = (
             self.near_loss_focal_weight * loss_near_focal
             + self.near_loss_dice_weight * loss_near_dice
