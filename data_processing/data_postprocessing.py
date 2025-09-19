@@ -317,7 +317,7 @@ def extract_front_from_zones(zone_mask, front_length_threshold):
     return front
 
 
-def postprocess_front_segmenation(complete_predicted_mask, threshold_front_length):
+def postprocess_front_segmentation(complete_predicted_mask, threshold_front_length):
     """
     
     #Post-process the front segmentation by skeletonization, filament extraction, and deletion of too short fronts
