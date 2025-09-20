@@ -363,9 +363,10 @@ def post_processing(target_masks, complete_predicted_masks, bounding_boxes_direc
         if target_masks == "zones":
             post_complete_predicted_mask = postprocess_zone_segmenation(complete_predicted_mask)
             post_complete_predicted_mask = extract_front_from_zones(post_complete_predicted_mask, pixel_threshold)
-        #else:
+        else:
             complete_predicted_mask_class_labels = turn_colors_to_class_labels_front(complete_predicted_mask)
-            post_complete_predicted_mask = postprocess_front_segmentation(complete_predicted_mask_class_labels, pixel_threshold)
+            post_complete_predicted_mask = complete_predicted_mask_class_labels
+            #post_complete_predicted_mask = postprocess_front_segmentation(complete_predicted_mask_class_labels, pixel_threshold)
             post_complete_predicted_mask = post_complete_predicted_mask * 255
 
         post_complete_predicted_mask = mask_prediction_with_bounding_box(post_complete_predicted_mask, file_name,
@@ -961,11 +962,11 @@ if __name__ == "__main__":
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"
                              "(checkpoints/..._segmentation/run_?).")
-    parser.add_argument('--version_number', default=1,
+    parser.add_argument('--version_number', default=0,
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="epoch=200-avg_train_loss=0.42.ckpt",
+    parser.add_argument('--checkpoint_file', default="epoch=200-avg_train_loss=0.x.ckpt",
                         help="The name of the checkpoint file you want to load.")
     parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")
