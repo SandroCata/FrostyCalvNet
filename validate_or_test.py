@@ -962,11 +962,11 @@ if __name__ == "__main__":
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"
                              "(checkpoints/..._segmentation/run_?).")
-    parser.add_argument('--version_number', default=0,
+    parser.add_argument('--version_number', default=2,
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="epoch=200-avg_train_loss=0.x.ckpt",
+    parser.add_argument('--checkpoint_file', default="epoch=02-avg_train_loss=0.50.ckpt",
                         help="The name of the checkpoint file you want to load.")
     parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")

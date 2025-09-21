@@ -50,13 +50,12 @@ class FrontUNet(UNet):
         self.w = hparams["w"]
         self.k = hparams["k"]
         self.relax = hparams["relax"]
-        """
+
         self.gamma = hparams["gamma"]
         self.alpha = hparams.get("alpha", None)
-        self.near_loss_focal_weight = hparams.get("near_loss_focal_weight", 0.5)
-        self.near_loss_dice_weight = hparams.get("near_loss_dice_weight", 0.5)
-        self.dice_near = DiceLoss(mode="binary")
-        """
+        self.loss_focal_weight = hparams.get("loss_focal_weight", 0.5)
+        self.loss_dice_weight = hparams.get("loss_dice_weight", 0.5)
+        self.dice = DiceLoss(mode="binary")
 
     def adapt_mask(self, y):
         return y.type(torch.float32)
@@ -108,6 +107,7 @@ class FrontUNet(UNet):
 
     def calc_loss(self, y_hat, y):
         y = self.adapt_mask(y)
+        """
         dmap_criterion = DistanceMapBCE(self.device, w=self.w, k=self.k, relax=self.relax)
         loss_front = dmap_criterion(y_hat[:, 0], y[:, 0])
         loss_near = dmap_criterion(y_hat[:, 1], y[:, 1])
@@ -116,23 +116,23 @@ class FrontUNet(UNet):
         front_pred = y_hat[:, 0].contiguous()
         front_true = y[:, 0].contiguous()
         loss_front_focal = focal_criterion(front_pred, front_true)
-        loss_front_dice = self.dice_near(front_pred, front_true)
+        loss_front_dice = self.dice(front_pred, front_true)
         loss_front = (
-            self.near_loss_focal_weight * loss_front_focal
-            + self.near_loss_dice_weight * loss_front_dice
+            self.loss_focal_weight * loss_front_focal
+            + self.loss_dice_weight * loss_front_dice
         )
-        """
+        
         # ensure contiguous tensors for loss functions expecting contiguous memory
-        """
+        
         near_pred = y_hat[:, 1:2].contiguous()
         near_true = y[:, 1:2].contiguous()
         loss_near_focal = focal_criterion(near_pred, near_true)
-        loss_near_dice = self.dice_near(near_pred, near_true)
+        loss_near_dice = self.dice(near_pred, near_true)
         loss_near = (
-            self.near_loss_focal_weight * loss_near_focal
-            + self.near_loss_dice_weight * loss_near_dice
+            self.loss_focal_weight * loss_near_focal
+            + self.loss_dice_weight * loss_near_dice
         )
-        """
+        
         loss = (loss_front + loss_near) / 2
         return loss, self.class_wise_iou(y_hat, y)
 
@@ -143,12 +143,12 @@ class FrontUNet(UNet):
         parser.add_argument('--max_lr', default=5e-4)
         parser.add_argument('--batch_size', default=16)
         parser.add_argument('--kernel_size', type=int, default=3)
-        """
+        
         parser.add_argument('--gamma', default=1.0, type=float, help="Gamma parameter for FocalLoss used for near segmentation")
         parser.add_argument('--alpha', default=0.9, type=float, help="Alpha parameter for FocalLoss used for near segmentation")
-        parser.add_argument('--near_loss_focal_weight', default=0.5, type=float, help="Weight for FocalLoss component of near segmentation loss")
-        parser.add_argument('--near_loss_dice_weight', default=0.5, type=float, help="Weight for DiceLoss component of near segmentation loss")
-        """
+        parser.add_argument('--loss_focal_weight', default=0.5, type=float, help="Weight for FocalLoss component of near segmentation loss")
+        parser.add_argument('--loss_dice_weight', default=0.5, type=float, help="Weight for DiceLoss component of near segmentation loss")
+        
 
         # Loss arguments
         parser.add_argument('--k', default=0.1, type=float, help="Parameter for the distance map-based loss for front segmentation")
