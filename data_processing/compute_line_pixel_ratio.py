@@ -24,16 +24,16 @@ except ImportError:  # pragma: no cover
 
 SCRIPT_ROOT = os.path.dirname(os.getcwd())
 DEFAULT_VAL_PREDICTIONS_DIR = os.path.join(
-    SCRIPT_ROOT, "FrostyCalvNet_onlyFiltering_onlyfront_noThickening\\validation_results\\fronts\\run_0\\complete_images"
+    SCRIPT_ROOT, "FrostyCalvNet_onlyfront\\validation_results\\fronts\\run_0\\complete_images"
 )
 DEFAULT_TEST_PREDICTIONS_DIR = os.path.join(
-    SCRIPT_ROOT, "FrostyCalvNet_onlyFiltering_onlyfront_noThickening\\test_results\\fronts\\run_0\\complete_images"
+    SCRIPT_ROOT, "FrostyCalvNet_onlyfront\\test_results\\fronts\\run_0\\complete_images"
 )
 DEFAULT_VAL_FRONT_LABELS_DIR = os.path.join(SCRIPT_ROOT, "data_raw\\fronts\\train")
 
 DEFAULT_TEST_FRONT_LABELS_DIR = os.path.join(SCRIPT_ROOT, "data_raw\\fronts\\test")
 
-DEFAULT_OUTPUT_PATH = os.path.join(SCRIPT_ROOT, "FrostyCalvNet_onlyFiltering_onlyfront_noThickening\\pixel_ratios\\line_pixel_ratios.txt")
+DEFAULT_OUTPUT_PATH = os.path.join(SCRIPT_ROOT, "FrostyCalvNet_onlyfront\\pixel_ratios\\line_pixel_ratios.txt")
 
 DATASET_DEFAULTS: dict[str, dict[str, Path]] = {
     "val": {
