@@ -51,12 +51,11 @@ def reconstruct_from_patches_and_binarize(
     dst_directory,
     modality,
     threshold_front_prob=0.5,
-    threshold_near_prob=None,
 ):
     """
     Reconstruct the image from patches in ``src_directory`` and store them in
     ``dst_directory``. For ``"fronts"`` the patches contain a single channel and
-    are stored separately for front and near-front.
+    representing the glacier front.
 
     Parameters
     ----------
@@ -68,17 +67,14 @@ def reconstruct_from_patches_and_binarize(
         Either ``"fronts"`` or ``"zones"``.
     threshold_front_prob : float, optional
         Threshold used to binarize the front channel. Default is ``0.5``.
-    threshold_near_prob : float, optional
-        Threshold used to binarize the near-front channel. Defaults to
-        ``threshold_front_prob`` if not provided.
 
     Returns
     -------
     numpy.ndarray
         Prediction (image = height x width).
     """
-    if threshold_near_prob is None:
-        threshold_near_prob = threshold_front_prob
+    if threshold_front_prob is None:
+        threshold_front_prob = 0.5
 
     assert modality == "fronts" or modality == "zones", "Modality must either be 'fronts' or 'zones'."
 
@@ -134,40 +130,40 @@ def reconstruct_from_patches_and_binarize(
 
             cv2.imwrite(os.path.join(dst_directory, name + '.png'), prediction)
         else:
-            for suffix in ["front", "near"]:
-                channel_patches = [p for p in patches_for_image_names if p.endswith(f"_{suffix}.png")]
-                patches_for_image = []
-                irow = []
-                icol = []
-                first_name = re.sub(r'_(front|near)\.png$', '.png', channel_patches[0])
-                padded_bottom = int(first_name[:-4].split('_')[-5])
-                padded_right = int(first_name[:-4].split('_')[-4])
-                for file_name in channel_patches:
-                    base_file = re.sub(r'_(front|near)\.png$', '.png', file_name)
-                    with open(os.path.join(src_directory, file_name), "rb") as fp:
-                        class_probabilities_array = pickle.load(fp)
-                        # convert torch tensors to numpy arrays before aggregation
-                        if hasattr(class_probabilities_array, "cpu"):
-                            class_probabilities_array = class_probabilities_array.cpu().numpy()
-                        else:
-                            class_probabilities_array = np.asarray(class_probabilities_array)
-                        assert class_probabilities_array.ndim == 2, "Patch " + file_name + " has wrong dimensions"
-                    patches_for_image.append(class_probabilities_array)
-                    irow.append(int(base_file[:-4].split('_')[-2]))
-                    icol.append(int(base_file[:-4].split('_')[-1]))
+            channel_patches = [p for p in patches_for_image_names if p.endswith("_front.png")]
+            if not channel_patches:
+                raise FileNotFoundError(f"No front patches found for image {name}")
+            patches_for_image = []
+            irow = []
+            icol = []
+            first_name = re.sub(r'_front\.png$', '.png', channel_patches[0])
+            padded_bottom = int(first_name[:-4].split('_')[-5])
+            padded_right = int(first_name[:-4].split('_')[-4])
+            for file_name in channel_patches:
+                base_file = re.sub(r'_front\.png$', '.png', file_name)
+                with open(os.path.join(src_directory, file_name), "rb") as fp:
+                    class_probabilities_array = pickle.load(fp)
+                    if hasattr(class_probabilities_array, "cpu"):
+                        class_probabilities_array = class_probabilities_array.cpu().numpy()
+                    else:
+                        class_probabilities_array = np.asarray(class_probabilities_array)
+                    assert class_probabilities_array.ndim == 2, "Patch " + file_name + " has wrong dimensions"
+                patches_for_image.append(class_probabilities_array)
+                irow.append(int(base_file[:-4].split('_')[-2]))
+                icol.append(int(base_file[:-4].split('_')[-1]))
 
-                patches_for_image = np.array(patches_for_image)
-                class_probability_complete_image, _ = reconstruct_from_grayscale_patches_with_origin(
-                    patches_for_image, origin=(irow, icol), use_gaussian=True)
-                class_probability_complete_image = class_probability_complete_image[:-padded_bottom, :-padded_right]
-                prediction = class_probability_complete_image
-                threshold = threshold_front_prob if suffix == "front" else threshold_near_prob
-                prediction[prediction > threshold] = 1
-                prediction[prediction <= threshold] = 0
-                prediction[prediction == 0] = 0
-                prediction[prediction == 1] = 255
-                assert (is_subarray(np.unique(prediction), [0, 255])), "Unique front values are not correct"
-                cv2.imwrite(os.path.join(dst_directory, name + f'_{suffix}.png'), prediction)
+            patches_for_image = np.array(patches_for_image)
+            class_probability_complete_image, _ = reconstruct_from_grayscale_patches_with_origin(
+                patches_for_image, origin=(irow, icol), use_gaussian=True)
+            class_probability_complete_image = class_probability_complete_image[:-padded_bottom, :-padded_right]
+            prediction = class_probability_complete_image
+            threshold = threshold_front_prob
+            prediction[prediction > threshold] = 1
+            prediction[prediction <= threshold] = 0
+            prediction[prediction == 0] = 0
+            prediction[prediction == 1] = 255
+            assert (is_subarray(np.unique(prediction), [0, 255])), "Unique front values are not correct"
+            cv2.imwrite(os.path.join(dst_directory, name + '_front.png'), prediction)
 
 
 def get_gaussian(patch_size, sigma_scale=1. / 8) -> np.ndarray:

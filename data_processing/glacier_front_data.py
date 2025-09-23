@@ -6,19 +6,15 @@ import numpy as np
 
 
 class ToTensorFront(object):
-    def __call__(self, image, target_front, target_near):
+    def __call__(self, image, target_front):
         image = F.to_tensor(image)
         front = torch.as_tensor(np.array(target_front))
-        near = torch.as_tensor(np.array(target_near))
         # value for front=255, background=0
         front[front == 255] = 1
         front[front == 0] = 0
-        near[near == 255] = 1
-        near[near == 0] = 0
-        target = torch.stack([front, near])
+        front = front.unsqueeze(0)
         # class ids for front=1, background=0
-        return image, target
-
+        return image, front.type(torch.float32)
 
 class GlacierFrontDataset(GlacierDataset):
     def __init__(self, mode, augmentation, parent_dir, bright, wrap, noise, rotate, flip):
@@ -34,9 +30,8 @@ class GlacierFrontDataset(GlacierDataset):
         
 
     def custom_to_tensor(self, image, target):
-        mask_front, mask_near = target
         to_tensor = ToTensorFront()
-        image, mask = to_tensor(image=image, target_front=mask_front, target_near=mask_near)
+        image, mask = to_tensor(image=image, target_front=target)
         return image, mask
     
 class GlacierFrontDataModule(GlacierDataModule):

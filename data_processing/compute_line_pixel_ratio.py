@@ -24,27 +24,25 @@ except ImportError:  # pragma: no cover
 
 SCRIPT_ROOT = os.path.dirname(os.getcwd())
 DEFAULT_VAL_PREDICTIONS_DIR = os.path.join(
-    SCRIPT_ROOT, "FrostyCalvNet\\validation_results\\fronts\\run_0\\complete_images"
+    SCRIPT_ROOT, "FrostyCalvNet_onlyFiltering_onlyfront_noThickening\\validation_results\\fronts\\run_0\\complete_images"
 )
 DEFAULT_TEST_PREDICTIONS_DIR = os.path.join(
-    SCRIPT_ROOT, "FrostyCalvNet\\test_results\\fronts\\run_0\\complete_images"
+    SCRIPT_ROOT, "FrostyCalvNet_onlyFiltering_onlyfront_noThickening\\test_results\\fronts\\run_0\\complete_images"
 )
 DEFAULT_VAL_FRONT_LABELS_DIR = os.path.join(SCRIPT_ROOT, "data_raw\\fronts\\train")
-DEFAULT_VAL_NEAR_LABELS_DIR = os.path.join(SCRIPT_ROOT, "data_raw\\near_fronts\\train")
+
 DEFAULT_TEST_FRONT_LABELS_DIR = os.path.join(SCRIPT_ROOT, "data_raw\\fronts\\test")
-DEFAULT_TEST_NEAR_LABELS_DIR = os.path.join(SCRIPT_ROOT, "data_raw\\near_fronts\\test")
-DEFAULT_OUTPUT_PATH = os.path.join(SCRIPT_ROOT, "FrostyCalvNet\\pixel_ratios\\line_pixel_ratios.txt")
+
+DEFAULT_OUTPUT_PATH = os.path.join(SCRIPT_ROOT, "FrostyCalvNet_onlyFiltering_onlyfront_noThickening\\pixel_ratios\\line_pixel_ratios.txt")
 
 DATASET_DEFAULTS: dict[str, dict[str, Path]] = {
     "val": {
         "predictions_dir": Path(DEFAULT_VAL_PREDICTIONS_DIR),
         "front_labels_dir": Path(DEFAULT_VAL_FRONT_LABELS_DIR),
-        "near_labels_dir": Path(DEFAULT_VAL_NEAR_LABELS_DIR),
     },
     "test": {
         "predictions_dir": Path(DEFAULT_TEST_PREDICTIONS_DIR),
         "front_labels_dir": Path(DEFAULT_TEST_FRONT_LABELS_DIR),
-        "near_labels_dir": Path(DEFAULT_TEST_NEAR_LABELS_DIR),
     },
 }
 DATASET_CHOICES = ("both", *DATASET_DEFAULTS.keys())
@@ -59,9 +57,6 @@ class RatioResult:
     predicted_front_pixels: int
     ground_truth_front_pixels: int
     front_ratio: float
-    predicted_near_pixels: Optional[int]
-    ground_truth_near_pixels: Optional[int]
-    near_ratio: Optional[float]
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -72,10 +67,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "paths—computed relative to this file—will be used for each dataset split:\n"
         f"  • Validation predictions: {DEFAULT_VAL_PREDICTIONS_DIR}\n"
         f"  • Validation front labels: {DEFAULT_VAL_FRONT_LABELS_DIR}\n"
-        f"  • Validation near-front labels: {DEFAULT_VAL_NEAR_LABELS_DIR}\n"
         f"  • Test predictions: {DEFAULT_TEST_PREDICTIONS_DIR}\n"
         f"  • Test front labels: {DEFAULT_TEST_FRONT_LABELS_DIR}\n"
-        f"  • Test near-front labels: {DEFAULT_TEST_NEAR_LABELS_DIR}\n"
         f"  • Output CSV: {DEFAULT_OUTPUT_PATH}"
     )
 
@@ -111,15 +104,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--near-labels-dir",
-        type=Path,
-        default=None,
-        help=(
-            "Directory with the reference near-front masks. By default, the directory corresponding "
-            "to the chosen dataset split is used."
-        ),
-    )
-    parser.add_argument(
         "--output-csv",
         type=Path,
         default=Path(DEFAULT_OUTPUT_PATH),
@@ -133,11 +117,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 def _resolve_dataset_directories(
     args: argparse.Namespace, parser: argparse.ArgumentParser
-) -> list[tuple[str, Path, Path, Path]]:
+) -> list[tuple[str, Path, Path]]:
     overrides = {
         "predictions_dir": args.predictions_dir,
         "front_labels_dir": args.front_labels_dir,
-        "near_labels_dir": args.near_labels_dir,
     }
 
     if args.dataset == "both":
@@ -150,7 +133,6 @@ def _resolve_dataset_directories(
                 dataset_name,
                 paths["predictions_dir"],
                 paths["front_labels_dir"],
-                paths["near_labels_dir"],
             )
             for dataset_name, paths in DATASET_DEFAULTS.items()
         ]
@@ -158,9 +140,8 @@ def _resolve_dataset_directories(
     defaults = DATASET_DEFAULTS[args.dataset]
     predictions_dir = overrides["predictions_dir"] or defaults["predictions_dir"]
     front_labels_dir = overrides["front_labels_dir"] or defaults["front_labels_dir"]
-    near_labels_dir = overrides["near_labels_dir"] or defaults["near_labels_dir"]
 
-    return [(args.dataset, predictions_dir, front_labels_dir, near_labels_dir)]
+    return [(args.dataset, predictions_dir, front_labels_dir)]
 
 
 def _load_grayscale_image(path: Path) -> "np.ndarray":
@@ -193,17 +174,11 @@ def _strip_known_suffix(name: str, suffixes: Sequence[str]) -> str:
     return Path(name).stem
 
 
-def _iter_prediction_pairs(predictions_dir: Path) -> Iterator[tuple[str, Path, Optional[Path]]]:
+def _iter_prediction_pairs(predictions_dir: Path) -> Iterator[tuple[str, Path]]:
     suffixes = ("_front.png", "_front.tif", "_front.jpg")
     for front_path in sorted(predictions_dir.glob("*_front.*")):
         base = _strip_known_suffix(front_path.name, suffixes)
-        near_candidate = None
-        for ext in (front_path.suffix, ".png", ".tif", ".jpg"):
-            candidate = predictions_dir / f"{base}_near{ext}"
-            if candidate.exists():
-                near_candidate = candidate
-                break
-        yield base, front_path, near_candidate
+        yield base, front_path
 
 
 def _find_label(base: str, directory: Path, candidates: Sequence[str]) -> Optional[Path]:
@@ -218,7 +193,6 @@ def _find_label(base: str, directory: Path, candidates: Sequence[str]) -> Option
 def compute_line_pixel_ratios(
     predictions_dir: Path,
     front_labels_dir: Path,
-    near_labels_dir: Path,
 ) -> list[RatioResult]:
     """Compute pixel ratios for each image found in ``predictions_dir``."""
 
@@ -226,25 +200,16 @@ def compute_line_pixel_ratios(
         raise FileNotFoundError(f"Predictions directory does not exist: {predictions_dir}")
     if not front_labels_dir.exists():
         raise FileNotFoundError(f"Front labels directory does not exist: {front_labels_dir}")
-    if not near_labels_dir.exists():
-        raise FileNotFoundError(f"Near-front labels directory does not exist: {near_labels_dir}")
 
     results: list[RatioResult] = []
-    for image_id, predicted_front_path, predicted_near_path in _iter_prediction_pairs(predictions_dir):
+    for image_id, predicted_front_path in _iter_prediction_pairs(predictions_dir):
         front_label_path = _find_label(
             image_id, front_labels_dir, ("_front.png", ".png", "_front.tif", ".tif")
-        )
-        near_label_path = _find_label(
-            image_id, near_labels_dir, ("_near.png", ".png", "_near.tif", ".tif")
         )
 
         if front_label_path is None:
             raise FileNotFoundError(
                 f"Could not find a front label for '{image_id}' inside {front_labels_dir}"
-            )
-        if predicted_near_path is not None and near_label_path is None:
-            raise FileNotFoundError(
-                f"Could not find a near-front label for '{image_id}' inside {near_labels_dir}"
             )
 
         predicted_front_pixels = _count_active_pixels(predicted_front_path)
@@ -255,26 +220,12 @@ def compute_line_pixel_ratios(
         else:
             front_ratio = predicted_front_pixels / ground_truth_front_pixels
 
-        predicted_near_pixels = None
-        ground_truth_near_pixels = None
-        near_ratio = None
-        if predicted_near_path is not None and near_label_path is not None:
-            predicted_near_pixels = _count_active_pixels(predicted_near_path)
-            ground_truth_near_pixels = _count_active_pixels(near_label_path)
-            if ground_truth_near_pixels == 0:
-                near_ratio = math.nan
-            else:
-                near_ratio = predicted_near_pixels / ground_truth_near_pixels
-
         results.append(
             RatioResult(
                 image_id=image_id,
                 predicted_front_pixels=predicted_front_pixels,
                 ground_truth_front_pixels=ground_truth_front_pixels,
                 front_ratio=front_ratio,
-                predicted_near_pixels=predicted_near_pixels,
-                ground_truth_near_pixels=ground_truth_near_pixels,
-                near_ratio=near_ratio,
             )
         )
     return results
@@ -288,7 +239,6 @@ def _mean_without_nan(values: Iterable[Optional[float]]) -> float:
 def summarise_results(results: Sequence[RatioResult]) -> dict[str, float]:
     return {
         "mean_front_ratio": _mean_without_nan(result.front_ratio for result in results),
-        "mean_near_ratio": _mean_without_nan(result.near_ratio for result in results),
     }
 
 
@@ -302,9 +252,6 @@ def write_results_to_csv(path: Path, results: Sequence[RatioResult]) -> None:
                 "predicted_front_pixels",
                 "ground_truth_front_pixels",
                 "front_ratio",
-                "predicted_near_pixels",
-                "ground_truth_near_pixels",
-                "near_ratio",
             ]
         )
         for result in results:
@@ -314,9 +261,6 @@ def write_results_to_csv(path: Path, results: Sequence[RatioResult]) -> None:
                     result.predicted_front_pixels,
                     result.ground_truth_front_pixels,
                     result.front_ratio,
-                    result.predicted_near_pixels,
-                    result.ground_truth_near_pixels,
-                    result.near_ratio,
                 ]
             )
 
@@ -328,13 +272,12 @@ def main(cli_args: Optional[Sequence[str]] = None) -> None:
     dataset_directories = _resolve_dataset_directories(args, parser)
     multiple_datasets = len(dataset_directories) > 1
 
-    for index, (dataset_name, predictions_dir, front_labels_dir, near_labels_dir) in enumerate(
+    for index, (dataset_name, predictions_dir, front_labels_dir) in enumerate(
         dataset_directories
     ):
         results = compute_line_pixel_ratios(
             predictions_dir=predictions_dir,
             front_labels_dir=front_labels_dir,
-            near_labels_dir=near_labels_dir,
         )
 
         output_path = args.output_csv
@@ -347,7 +290,6 @@ def main(cli_args: Optional[Sequence[str]] = None) -> None:
         prefix = f"[{dataset_name}] "
         print(prefix + "Computed ratios for", len(results), "images")
         print(prefix + "Mean front-line pixel ratio:", summary["mean_front_ratio"])
-        print(prefix + "Mean near-front pixel ratio:", summary["mean_near_ratio"])
         print(prefix + "Results written to:", output_path)
 
         if multiple_datasets and index < len(dataset_directories) - 1:

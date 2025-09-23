@@ -17,8 +17,7 @@ def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
     parent_dir = Path(os.getcwd()).parent
     sar_dir = parent_dir / data_dir / "sar_images" / split
     front_dir = parent_dir / data_dir / "fronts" / split
-    near_dir = parent_dir / data_dir / "near_fronts" / split
-    if not front_dir.exists() or not near_dir.exists():
+    if not front_dir.exists():
         print(f"Missing masks for split '{split}', skipping")
         return
 
@@ -27,12 +26,8 @@ def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
     empty_names = []
     for name in sar_files:
         front_name = name.replace(".png", "_front.png")
-        near_name = name.replace(".png", "_near_front.png")
         front_path = front_dir / front_name
-        near_path = near_dir / near_name
-        front_empty = not front_path.exists() or is_empty(front_path)
-        near_empty = not near_path.exists() or is_empty(near_path)
-        if front_empty and near_empty:
+        if not front_path.exists() or is_empty(front_path):
             empty_names.append(name)
 
     # keep a fraction of negative samples
@@ -45,7 +40,6 @@ def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
         paths = [
             sar_dir / name,
             front_dir / name.replace(".png", "_front.png"),
-            near_dir / name.replace(".png", "_near_front.png"),
         ]
         for f in paths:
             if f.exists():

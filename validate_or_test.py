@@ -132,7 +132,7 @@ def get_matching_out_of_folder(file_name, folder, expected_suffix=None):
     folder = os.path.normpath(folder)
     files = os.listdir(folder)
     pattern_name = os.path.split(file_name)[1][:-4]
-    pattern_name = re.sub(r'_(front|near)$', '', pattern_name)
+    pattern_name = re.sub(r'_front$', '', pattern_name)
     if expected_suffix is not None:
         expected_name = f"{pattern_name}{expected_suffix}"
         matching_files = [a for a in files if os.path.split(a)[1] == expected_name]
@@ -189,12 +189,9 @@ def evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory):
             y_hat = torch.sigmoid(y_hat)
             for index_in_batch in range(len(y_hat)):
                 front_map = y_hat[index_in_batch, 0].to("cpu").clone()
-                near_map = y_hat[index_in_batch, 1].to("cpu").clone()
                 base_name = x_names[index_in_batch][:-4]
                 with open(os.path.join(patch_directory, base_name + "_front.png"), "wb") as fp:
                     pickle.dump(front_map, fp)
-                with open(os.path.join(patch_directory, base_name + "_near.png"), "wb") as fp:
-                    pickle.dump(near_map, fp)
 
         average_loss = sum(losses) / len(losses)
         return average_loss, losses
@@ -202,14 +199,13 @@ def evaluate_model_on_given_dataset(mode, model, datamodule, patch_directory):
 
 
 def calculate_segmentation_metrics(target_mask_modality, complete_predicted_masks, complete_directory,
-                                   directory_of_complete_targets_front, directory_of_complete_targets_near=None):
+                                   directory_of_complete_targets_front):
     """
     Calculate IoU, Precision, Recall and F1-Score for all predicted segmentations
     :param target_mask_modality: either "zones" or "fronts"
     :param complete_predicted_masks: All file names of complete predictions
     :param complete_directory: the directory which is going to hold the complete predicted images
     :param directory_of_complete_targets_front: directory holding the complete ground truth segmentations for the front class
-    :param directory_of_complete_targets_near: directory holding the ground truth for the near-front class (only for fronts)
     :return:
     """
     print("\n\nCalculate segmentation metrics ...\n\n")
@@ -244,66 +240,55 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
         print_zone_metrics("IoU", list_of_ious)
         print_zone_metrics("Accuracy", list_of_accuracies)
     else:
-        front_files = [f for f in complete_predicted_masks if f.endswith('_front.png')]
-        near_files = [f for f in complete_predicted_masks if f.endswith('_near.png')]
+        
         metrics_front = {"iou": [], "precision": [], "recall": [], "f1": [], "accuracy": []}
-        metrics_near = {"iou": [], "precision": [], "recall": [], "f1": [], "accuracy": []}
-        for file_list, target_dir, metrics, expected_suffix in [
-            (front_files, directory_of_complete_targets_front, metrics_front, "_front.png"),
-            (near_files, directory_of_complete_targets_near, metrics_near, "_near_front.png"),
-
-        ]:
-            for file_name in file_list:
-                print(f"File: {file_name}")
-                complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
-                matching_target_file = get_matching_out_of_folder(file_name, target_dir, expected_suffix=expected_suffix)
-                complete_target = cv2.imread(os.path.join(target_dir, matching_target_file).__str__(), cv2.IMREAD_GRAYSCALE)
-                if complete_predicted_mask.shape != complete_target.shape:
-                    complete_predicted_mask, complete_target = crop_to_same_shape(complete_predicted_mask, complete_target)
-                complete_predicted_mask_class_labels = turn_colors_to_class_labels_front(complete_predicted_mask)
-                complete_target_class_labels = turn_colors_to_class_labels_front(complete_target)
-                flattened_complete_target_class_labels = np.ndarray.flatten(complete_target_class_labels)
-                flattened_complete_predicted_mask_class_labels = np.ndarray.flatten(complete_predicted_mask_class_labels)
-                metrics["iou"].append(jaccard_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-                metrics["precision"].append(
-                    precision_score(
-                        flattened_complete_target_class_labels,
-                        flattened_complete_predicted_mask_class_labels,
-                        zero_division=0,
-                    )
+        for file_name in complete_predicted_masks:
+            if not file_name.endswith('_front.png'):
+                continue
+            print(f"File: {file_name}")
+            complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
+            matching_target_file = get_matching_out_of_folder(file_name, directory_of_complete_targets_front, expected_suffix="_front.png")
+            complete_target = cv2.imread(os.path.join(directory_of_complete_targets_front, matching_target_file).__str__(), cv2.IMREAD_GRAYSCALE)
+            if complete_predicted_mask.shape != complete_target.shape:
+                complete_predicted_mask, complete_target = crop_to_same_shape(complete_predicted_mask, complete_target)
+            complete_predicted_mask_class_labels = turn_colors_to_class_labels_front(complete_predicted_mask)
+            complete_target_class_labels = turn_colors_to_class_labels_front(complete_target)
+            flattened_complete_target_class_labels = np.ndarray.flatten(complete_target_class_labels)
+            flattened_complete_predicted_mask_class_labels = np.ndarray.flatten(complete_predicted_mask_class_labels)
+            metrics_front["iou"].append(jaccard_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
+            metrics_front["precision"].append(
+                precision_score(
+                    flattened_complete_target_class_labels,
+                    flattened_complete_predicted_mask_class_labels,
+                    zero_division=0,
                 )
-                metrics["recall"].append(
-                    recall_score(
-                        flattened_complete_target_class_labels,
-                        flattened_complete_predicted_mask_class_labels,
-                        zero_division=0,
-                    )
+            )
+            metrics_front["recall"].append(
+                recall_score(
+                    flattened_complete_target_class_labels,
+                    flattened_complete_predicted_mask_class_labels,
+                    zero_division=0,
                 )
-                metrics["f1"].append(
-                    f1_score(
-                        flattened_complete_target_class_labels,
-                        flattened_complete_predicted_mask_class_labels,
-                        zero_division=0,
-                    )
+            )
+            metrics_front["f1"].append(
+                f1_score(
+                    flattened_complete_target_class_labels,
+                    flattened_complete_predicted_mask_class_labels,
+                    zero_division=0,
                 )
-                metrics["accuracy"].append(
-                    accuracy_score(
-                        flattened_complete_target_class_labels,
-                        flattened_complete_predicted_mask_class_labels,
-                    )
+            )
+            metrics_front["accuracy"].append(
+                accuracy_score(
+                    flattened_complete_target_class_labels,
+                    flattened_complete_predicted_mask_class_labels,
                 )
+            )
         print("\nFront:")
         print_front_metric("Precision", metrics_front["precision"])
         print_front_metric("Recall", metrics_front["recall"])
         print_front_metric("F1 Score", metrics_front["f1"])
         print_front_metric("IoU", metrics_front["iou"])
         print_front_metric("Accuracy", metrics_front["accuracy"])
-        print("\nNear-Front:")
-        print_front_metric("Precision", metrics_near["precision"])
-        print_front_metric("Recall", metrics_near["recall"])
-        print_front_metric("F1 Score", metrics_near["f1"])
-        print_front_metric("IoU", metrics_near["iou"])
-        print_front_metric("Accuracy", metrics_near["accuracy"])
 
 
 def mask_prediction_with_bounding_box(post_complete_predicted_mask, file_name, bounding_boxes_directory):
@@ -354,7 +339,7 @@ def post_processing(target_masks, complete_predicted_masks, bounding_boxes_direc
     for file_name in complete_predicted_masks:
         print(f"File: {file_name}")
         name = os.path.split(file_name)[1][:-4]
-        name = re.sub(r'_(front|near)$', '', name)
+        name = re.sub(r'_front$', '', name)
         resolution = int(name.split('_')[-3])
         # pixel_threshold (pixel) * resolution (m/pixel) = meter_threshold (m)
         pixel_threshold = meter_threshold / resolution
@@ -414,16 +399,16 @@ def calculate_front_delineation_metric(
             os.path.join(complete_postprocessed_directory, file_name).__str__(),
             cv2.IMREAD_GRAYSCALE,
         )
-        expected_suffix = "_near_front.png" if file_name.endswith("_near.png") else "_front.png"
+        
         matching_target_file = get_matching_out_of_folder(
-            file_name, directory_of_target_fronts, expected_suffix=expected_suffix
+            file_name, directory_of_target_fronts, expected_suffix=mask_suffix
         )
         target_front = cv2.imread(
             os.path.join(directory_of_target_fronts, matching_target_file).__str__(),
             cv2.IMREAD_GRAYSCALE,
         )
         name = os.path.split(file_name)[1][:-4]
-        name = re.sub(r'_(front|near)$', '', name)
+        name = re.sub(r'_front$', '', name)
         resolution = int(name.split('_')[-3])
 
         # images need to be turned into a Tensor [0, ..., n_classes-1]
@@ -489,23 +474,37 @@ def check_whether_winter_half_year(name):
 def front_delineation_metric(
         complete_postprocessed_directory,
         directory_of_target_fronts,
-        directory_of_target_near_fronts=None,
 ):
     """
     Calculate front delineation statistics (MDE and mean deviation) and break them up by glacier,
     season, resolution and satellite
     :param complete_postprocessed_directory: the directory holding the complete predicted and post-processed images
     :param directory_of_target_fronts: directory holding the complete ground truth fronts
-    :param directory_of_target_near_fronts: directory holding the ground truth near fronts
     :return:
     """
     print("\n\nCalculating distance errors ...\n\n")
     post_processed_predicted_masks = os.listdir(os.path.join(complete_postprocessed_directory))
 
-    print("")
-    print("####################################################################")
-    print(f"# Results for all images")
-    print("####################################################################")
+    def _print_header(title: str) -> None:
+        print("")
+        print("####################################################################")
+        print(f"# {title}")
+        print("####################################################################")
+
+    def _report_subset(title: str, subset: list[str]) -> None:
+        if len(subset) == 0:
+            return
+        _print_header(title)
+        print(f"Number of images: {len(subset)}")
+        print("\n-- Front --")
+        calculate_front_delineation_metric(
+            subset,
+            directory_of_target_fronts,
+            mask_suffix="_front.png",
+            structure_name="front",
+        )
+
+    _print_header("Results for all images")
     print(f"Number of images: {len(post_processed_predicted_masks)}")
     print("\n-- Front --")
     list_of_all_front_errors_without_nan = calculate_front_delineation_metric(
@@ -514,255 +513,113 @@ def front_delineation_metric(
         mask_suffix="_front.png",
         structure_name="front",
     )
-    np.savetxt(
-        os.path.join(complete_postprocessed_directory, os.pardir, "distance_errors_front.txt"),
-        list_of_all_front_errors_without_nan,
-    )
-    if directory_of_target_near_fronts is not None:
-        print("\n-- Near-front --")
-        list_of_all_near_errors_without_nan = calculate_front_delineation_metric(
-            post_processed_predicted_masks,
-            directory_of_target_near_fronts,
-            mask_suffix="_near.png",
-            structure_name="near-front",
-        )
+    if list_of_all_front_errors_without_nan is not None:
         np.savetxt(
-            os.path.join(complete_postprocessed_directory, os.pardir, "distance_errors_near.txt"),
-            list_of_all_near_errors_without_nan,
+            os.path.join(complete_postprocessed_directory, os.pardir, "distance_errors_front.txt"),
+            list_of_all_front_errors_without_nan,
         )
 
     # Season subsetting
     for season in ["winter", "summer"]:
-        print("")
-        print("####################################################################")
-        print(f"# Results for only images in {season}")
-        print("####################################################################")
-        subset_of_predictions = []
+        
+        subset = []
         for file_name in post_processed_predicted_masks:
             winter = check_whether_winter_half_year(file_name)
             if (winter and season == "summer") or (not winter and season == "winter"):
                 continue
-            subset_of_predictions.append(file_name)
-        if len(subset_of_predictions) == 0: continue
-        print(f"Number of images: {len(subset_of_predictions)}")
-        print("\n-- Front --")
-        _ = calculate_front_delineation_metric(
-            subset_of_predictions,
-            directory_of_target_fronts,
-            mask_suffix="_front.png",
-            structure_name="front",
-        )
-        if directory_of_target_near_fronts is not None:
-            print("\n-- Near-front --")
-            _ = calculate_front_delineation_metric(
-                subset_of_predictions,
-                directory_of_target_near_fronts,
-                mask_suffix="_near.png",
-                structure_name="near-front",
-            )
-
+            subset.append(file_name)
+        _report_subset(f"Results for only images in {season}", subset)
+            
     # Glacier subsetting
     for glacier in ["Mapple", "COL", "Crane", "DBE", "JAC", "Jorum", "SI"]:
-        print("")
-        print("####################################################################")
-        print(f"# Results for only images from {glacier}")
-        print("####################################################################")
-        subset_of_predictions = []
-        for file_name in post_processed_predicted_masks:
-            if not file_name[:-4].split('_')[0] == glacier:
-                continue
-            subset_of_predictions.append(file_name)
-        if len(subset_of_predictions) == 0: continue
-        print(f"Number of images: {len(subset_of_predictions)}")
-        print("\n-- Front --")
-        _ = calculate_front_delineation_metric(
-            subset_of_predictions,
-            directory_of_target_fronts,
-            mask_suffix="_front.png",
-            structure_name="front",
-        )
-        if directory_of_target_near_fronts is not None:
-            print("\n-- Near-front --")
-            _ = calculate_front_delineation_metric(
-                subset_of_predictions,
-                directory_of_target_near_fronts,
-                mask_suffix="_near.png",
-                structure_name="near-front",
-            )
+        subset = [
+            file_name
+            for file_name in post_processed_predicted_masks
+            if file_name[:-4].split('_')[0] == glacier
+        ]
+        _report_subset(f"Results for only images from {glacier}", subset)
 
     # Sensor subsetting
     for sensor in ["RSAT", "S1", "ENVISAT", "ERS", "PALSAR", "TSX/TDX"]:
-        print("")
-        print("####################################################################")
-        print(f"# Results for only images from {sensor}")
-        print("####################################################################")
-        subset_of_predictions = []
+        
+        subset= []
         for file_name in post_processed_predicted_masks:
             if sensor == "TSX/TDX":
                 if not (file_name[:-4].split('_')[2] == "TSX" or file_name[:-4].split('_')[2] == "TDX"):
                     continue
             elif not file_name[:-4].split('_')[2] == sensor:
                 continue
-            subset_of_predictions.append(file_name)
-        if len(subset_of_predictions) == 0: continue
-        print(f"Number of images: {len(subset_of_predictions)}")
-        print("\n-- Front --")
-        _ = calculate_front_delineation_metric(
-            subset_of_predictions,
-            directory_of_target_fronts,
-            mask_suffix="_front.png",
-            structure_name="front",
-        )
-        if directory_of_target_near_fronts is not None:
-            print("\n-- Near-front --")
-            _ = calculate_front_delineation_metric(
-                subset_of_predictions,
-                directory_of_target_near_fronts,
-                mask_suffix="_near.png",
-                structure_name="near-front",
-            )
+            subset.append(file_name)
+        _report_subset(f"Results for only images from {sensor}", subset)
 
     # Resolution subsetting
     for res in [20, 17, 12, 7, 6]:
-        print("")
-        print("####################################################################")
-        print(f"# Results for only images with a resolution of {res}")
-        print("####################################################################")
-        subset_of_predictions = []
-        for file_name in post_processed_predicted_masks:
-            if not int(file_name[:-4].split('_')[3]) == res:
-                continue
-            subset_of_predictions.append(file_name)
-        if len(subset_of_predictions) == 0: continue
-        print(f"Number of images: {len(subset_of_predictions)}")
-        print("\n-- Front --")
-        _ = calculate_front_delineation_metric(
-            subset_of_predictions,
-            directory_of_target_fronts,
-            mask_suffix="_front.png",
-            structure_name="front",
-        )
-        if directory_of_target_near_fronts is not None:
-            print("\n-- Near-front --")
-            _ = calculate_front_delineation_metric(
-                subset_of_predictions,
-                directory_of_target_near_fronts,
-                mask_suffix="_near.png",
-                structure_name="near-front",
-            )
+        subset = [
+            file_name
+            for file_name in post_processed_predicted_masks
+            if int(file_name[:-4].split('_')[3]) == res
+        ]
+        _report_subset(f"Results for only images with a resolution of {res}", subset)
 
     # Season and glacier subsetting
     for glacier in ["Mapple", "COL", "Crane", "DBE", "JAC", "Jorum", "SI"]:
         for season in ["winter", "summer"]:
-            print("")
-            print("####################################################################")
-            print(f"# Results for only images in {season} and from {glacier}")
-            print("####################################################################")
-            subset_of_predictions = []
+            subset= []
             for file_name in post_processed_predicted_masks:
                 winter = check_whether_winter_half_year(file_name)
-                if not file_name[:-4].split('_')[0] == glacier:
+                if file_name[:-4].split('_')[0] != glacier:
                     continue
                 if (winter and season == "summer") or (not winter and season == "winter"):
                     continue
-                subset_of_predictions.append(file_name)
-            if len(subset_of_predictions) == 0: continue
-            print(f"Number of images: {len(subset_of_predictions)}")
-            print("\n-- Front --")
-            _ = calculate_front_delineation_metric(
-                subset_of_predictions,
-                directory_of_target_fronts,
-                mask_suffix="_front.png",
-                structure_name="front",
+                subset.append(file_name)
+            _report_subset(
+                f"Results for only images in {season} and from {glacier}",
+                subset,
             )
-            if directory_of_target_near_fronts is not None:
-                print("\n-- Near-front --")
-                _ = calculate_front_delineation_metric(
-                    subset_of_predictions,
-                    directory_of_target_near_fronts,
-                    mask_suffix="_near.png",
-                    structure_name="near-front",
-                )
 
     # Sensor and glacier subsetting
     for glacier in ["Mapple", "COL", "Crane", "DBE", "JAC", "Jorum", "SI"]:
         for sensor in ["RSAT", "S1", "ENVISAT", "ERS", "PALSAR", "TSX/TDX"]:
-            print("")
-            print("####################################################################")
-            print(f"# Results for only images of {sensor} and from {glacier}")
-            print("####################################################################")
-            subset_of_predictions = []
+            subset = []
             for file_name in post_processed_predicted_masks:
-                if not file_name[:-4].split('_')[0] == glacier:
+                if file_name[:-4].split('_')[0] != glacier:
                     continue
                 if sensor == "TSX/TDX":
                     if not (file_name[:-4].split('_')[2] == "TSX" or file_name[:-4].split('_')[2] == "TDX"):
                         continue
-                elif not file_name[:-4].split('_')[2] == sensor:
+                elif file_name[:-4].split('_')[2] != sensor:
                     continue
-                subset_of_predictions.append(file_name)
-            if len(subset_of_predictions) == 0: continue
-            print(f"Number of images: {len(subset_of_predictions)}")
-            print("\n-- Front --")
-            _ = calculate_front_delineation_metric(
-                subset_of_predictions,
-                directory_of_target_fronts,
-                mask_suffix="_front.png",
-                structure_name="front",
+                subset.append(file_name)
+            _report_subset(
+                f"Results for only images of {sensor} and from {glacier}",
+                subset,
             )
-            if directory_of_target_near_fronts is not None:
-                print("\n-- Near-front --")
-                _ = calculate_front_delineation_metric(
-                    subset_of_predictions,
-                    directory_of_target_near_fronts,
-                    mask_suffix="_near.png",
-                    structure_name="near-front",
-                )
+            
 
     # Resolution and glacier subsetting
     for glacier in ["Mapple", "COL", "Crane", "DBE", "JAC", "Jorum", "SI"]:
         for res in [20, 17, 12, 7, 6]:
-            print("")
-            print("####################################################################")
-            print(f"# Results for only images with resolution {res} and from {glacier}")
-            print("####################################################################")
-            subset_of_predictions = []
-            for file_name in post_processed_predicted_masks:
-                if not file_name[:-4].split('_')[0] == glacier:
-                    continue
-                if not int(file_name[:-4].split('_')[3]) == res:
-                    continue
-                subset_of_predictions.append(file_name)
-            if len(subset_of_predictions) == 0: continue
-            print(f"Number of images: {len(subset_of_predictions)}")
-            print("\n-- Front --")
-            _ = calculate_front_delineation_metric(
-                subset_of_predictions,
-                directory_of_target_fronts,
-                mask_suffix="_front.png",
-                structure_name="front",
+            subset = [
+                file_name
+                for file_name in post_processed_predicted_masks
+                if file_name[:-4].split('_')[0] == glacier
+                and int(file_name[:-4].split('_')[3]) == res
+            ]
+            _report_subset(
+                f"Results for only images with resolution {res} and from {glacier}",
+                subset,
             )
-            if directory_of_target_near_fronts is not None:
-                print("\n-- Near-front --")
-                _ = calculate_front_delineation_metric(
-                    subset_of_predictions,
-                    directory_of_target_near_fronts,
-                    mask_suffix="_near.png",
-                    structure_name="near-front",
-                )
 
 
 def visualizations(complete_postprocessed_directory,
                    directory_of_target_fronts,
-                   directory_of_target_near_fronts,
                    directory_of_sar_images,
                    bounding_boxes_directory,
                    visualizations_dir):
     """
-    Produce visualizations showing the predicted front/near-front, the ground truth and the bounding box on the SAR image
+    Produce visualizations showing the predicted front, the ground truth and the bounding box on the SAR image
     :param complete_postprocessed_directory: the directory holding the complete predicted and post-processed images
     :param directory_of_target_fronts: directory holding the complete ground truth fronts
-    :param directory_of_target_near_fronts: directory holding the ground truth near fronts
     :param directory_of_sar_images: directory holding the sar images
     :param bounding_boxes_directory: directory holding the bounding boxes
     :param visualizations_dir: directory which is going to hold the visualizations
@@ -772,30 +629,15 @@ def visualizations(complete_postprocessed_directory,
     post_processed_predicted_masks = [
         f
         for f in os.listdir(complete_postprocessed_directory)
-        if f.endswith('_front.png') or f.endswith('_near.png')
+        if f.endswith('_front.png')
     ]
     for file_name in post_processed_predicted_masks:
-        if file_name.endswith('_front.png'):
-            target_dir = directory_of_target_fronts
-            matching_target_file = get_matching_out_of_folder(
-                file_name, target_dir, expected_suffix="_front.png"
-            )
-        else:  # '_near.png'
-            if (
-                directory_of_target_near_fronts is None
-                or not os.path.isdir(directory_of_target_near_fronts)
-            ):
-                continue
-            target_dir = directory_of_target_near_fronts
-            near_gt_name = file_name.replace('_near.png', '_near_front.png')
-            if os.path.exists(os.path.join(target_dir, near_gt_name)):
-                matching_target_file = near_gt_name
-            else:
-                matching_target_file = get_matching_out_of_folder(
-                    file_name, target_dir, expected_suffix="_near_front.png"
-                )
+        target_dir = directory_of_target_fronts
+        matching_target_file = get_matching_out_of_folder(
+            file_name, target_dir, expected_suffix="_front.png"
+        )
         name = os.path.split(file_name)[1][:-4]
-        name = re.sub(r'_(front|near)$', '', name)
+        name = re.sub(r'_front$', '', name)
         resolution = int(name.split('_')[-3])
         if resolution < 10:
             dilation = 9
@@ -879,7 +721,6 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     :return:
     """
     threshold_front_prob = 0.12
-    threshold_near_prob = 0.12
     # #############################################################################################################
     # EVALUATE MODEL ON GIVEN DATASET
     # #############################################################################################################
@@ -895,7 +736,6 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
         dst_directory=complete_directory,
         modality=model.hparams.target_masks,
         threshold_front_prob=threshold_front_prob,
-        threshold_near_prob=threshold_near_prob,
     )
     shutil.rmtree(patch_directory)
 
@@ -906,19 +746,19 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     if model.hparams.target_masks == "fronts":
         if mode == "test":
             directory_of_target_fronts = os.path.join(data_raw_dir, "fronts", 'test')
-            directory_of_target_near_fronts = os.path.join(data_raw_dir, "near_fronts", 'test')
+            
         else:
             directory_of_target_fronts = os.path.join(data_raw_dir, "fronts", 'train')
-            directory_of_target_near_fronts = os.path.join(data_raw_dir, "near_fronts", 'train')
+            
     else:
         if mode == "test":
             directory_of_target_fronts = os.path.join(data_raw_dir, model.hparams.target_masks, 'test')
         else:
             directory_of_target_fronts = os.path.join(data_raw_dir, model.hparams.target_masks, 'train')
-        directory_of_target_near_fronts = None
+        
 
     calculate_segmentation_metrics(model.hparams.target_masks, complete_predicted_masks, complete_directory,
-                                   directory_of_target_fronts, directory_of_target_near_fronts)
+                                   directory_of_target_fronts)
 
     # ###############################################################################################
     # POST-PROCESSING
@@ -931,11 +771,11 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     # ###############################################################################################
     if mode == "test":
         directory_of_target_fronts = os.path.join(data_raw_dir, "fronts", 'test')
-        directory_of_target_near_fronts = os.path.join(data_raw_dir, "near_fronts", 'test') if model.hparams.target_masks == "fronts" else None
+        
     else:
         directory_of_target_fronts = os.path.join(data_raw_dir, "fronts", 'train')
-        directory_of_target_near_fronts = os.path.join(data_raw_dir, "near_fronts", 'train') if model.hparams.target_masks == "fronts" else None
-    front_delineation_metric(complete_postprocessed_directory, directory_of_target_fronts, directory_of_target_near_fronts)
+        
+    front_delineation_metric(complete_postprocessed_directory, directory_of_target_fronts)
 
     # ###############################################################################################
     # MAKE VISUALIZATIONS
@@ -946,7 +786,6 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
         directory_of_sar_images = os.path.join(data_raw_dir, "sar_images", 'train')
     visualizations(complete_postprocessed_directory,
                    directory_of_target_fronts,
-                   directory_of_target_near_fronts,
                    directory_of_sar_images,
                    bounding_boxes_directory,
                    visualizations_dir)
@@ -962,11 +801,11 @@ if __name__ == "__main__":
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"
                              "(checkpoints/..._segmentation/run_?).")
-    parser.add_argument('--version_number', default=2,
+    parser.add_argument('--version_number', default=3,
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="epoch=02-avg_train_loss=0.50.ckpt",
+    parser.add_argument('--checkpoint_file', default="epoch=200-avg_train_loss=0.76.ckpt",
                         help="The name of the checkpoint file you want to load.")
     parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")

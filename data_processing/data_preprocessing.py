@@ -81,7 +81,7 @@ def pad_image_and_masks(image, patch_size_tuple, overlap):
 def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
     """
     Perform pre-processing steps.
-    :param modality_dir: Either "sar_images" or "zones" or "fronts" or "near_fronts"
+    :param modality_dir: Either "sar_images" or "zones" or "fronts"
     :param data_split_dir: "test", "train" or "val"
     :param files: The location+name of all files to be processed
     :param patch_size: size of the patches that shall be extracted
@@ -112,18 +112,13 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
             suffix = "_front"
             if img_name.endswith(suffix):
                 img_name = img_name[: -len(suffix)]
-        elif modality_dir == "near_fronts":
-            suffix = "_near_front"
-            if img_name.endswith(suffix):
-                img_name = img_name[: -len(suffix)]
-            elif img_name.endswith("_front"):
-                img_name = img_name[: -len("_front")]
+        
 
         # #####################################################################################################
         # Store Patches with useful names
         # #####################################################################################################
         for j in range(len(patches_image)):
-            # naming convention: nameOfTheOriginalImage__PaddedBottom_PaddedRight_NumberOfPatch_irow_icol[_{front|near_front}].png
+            # naming convention: nameOfTheOriginalImage__PaddedBottom_PaddedRight_NumberOfPatch_irow_icol[_front].png
             # with x and y the x and y coordinates of the patch in the complete image
             add_to_name = (
                 "__"
@@ -161,7 +156,7 @@ def main(raw_data_dir, patch_size, overlap, overlap_test, overlap_val):
     """
     parent_dir = os.path.dirname(os.getcwd())
     threads = []
-    for modality_dir in ["sar_images", "fronts", "near_fronts"]:
+    for modality_dir in ["sar_images", "fronts"]:
         if not os.path.exists(os.path.join(parent_dir, "data", modality_dir)):
             os.makedirs(os.path.join(parent_dir, "data", modality_dir))
         if not os.path.exists(os.path.join(parent_dir, "data", modality_dir, "val")):

@@ -14,23 +14,19 @@ class GlacierDataset(Dataset):
         if mode == 'train':
             self.images_path = os.path.join(parent_dir, "data", "sar_images", "train")
             self.targets_path = os.path.join(parent_dir, "data", target, "train")
-            self.near_targets_path = os.path.join(parent_dir, "data", "near_fronts", "train")
         elif mode == 'val':
             self.images_path = os.path.join(parent_dir, "data", "sar_images", "val")
             self.targets_path = os.path.join(parent_dir, "data", target, "val")
-            self.near_targets_path = os.path.join(parent_dir, "data", "near_fronts", "val")
         elif mode == 'test':
             self.images_path = os.path.join(parent_dir, "data", "sar_images", "test")
             self.targets_path = os.path.join(parent_dir, "data", target, "test")
-            self.near_targets_path = os.path.join(parent_dir, "data", "near_fronts", "test")                
             
         self.imgs = os.listdir(self.images_path)
         self.labels = os.listdir(self.targets_path)
-        self.near_labels = os.listdir(self.near_targets_path)
+        
         # Sort so images and labels fit together
         self.imgs.sort()
         self.labels.sort()
-        self.near_labels.sort()
 
         # Shuffle so that if limit_train/val/test_batch is set, not only all images from one glacier are used
         # However, always use same shuffle so that it is reproducible
@@ -61,22 +57,18 @@ class GlacierDataset(Dataset):
 
         self.imgs = np.array(self.imgs)
         self.labels = np.array(self.labels)
-        self.near_labels = np.array(self.near_labels)
 
 
         tmp = self.imgs[shuffle]
         self.imgs = tmp
         tmp = self.labels[shuffle]
         self.labels = tmp
-        tmp = self.near_labels[shuffle]
-        self.near_labels = tmp
 
         self.imgs = list(self.imgs)
         self.labels = list(self.labels)
-        self.near_labels = list(self.near_labels)
 
         # assert both lists have the same length
-        assert len(self.imgs) == len(self.labels) == len(self.near_labels), "You don't have the same number of images and masks"
+        assert len(self.imgs) == len(self.labels), "You don't have the same number of images and masks"
         self.mode = mode
         self.target = target
         self.augmentation = augmentation
@@ -127,37 +119,26 @@ class GlacierDataset(Dataset):
     def __getitem__(self, idx):
         img_name = self.imgs[idx]
         label_name = self.labels[idx]
-        label_near_name = self.near_labels[idx]
         
-        #[TODO]: continue fixing from here by adjusting to include and work also for near_labels
+        
+        # Assert that image and label names match. Labels are expected to contain
+        # a suffix identifying the target (e.g. ``_front`` or ``_zones``)
+        # directly before the file extension. Historically, the comparison
+        # attempted to strip this suffix by removing the last six characters of
+        # the first token which broke when the suffix was appended at the end of
+        # the file name (``..._front.png``). Here we explicitly remove the
+        # suffix and compare the full file names to avoid mismatches.
 
-        # Assert that image, label and near-label names match. Labels are expected
-        # to contain a suffix identifying the target (e.g. ``_front`` or
-        # ``_zones``) directly before the file extension. Historically, the
-        # comparison attempted to strip this suffix by removing the last six
-        # characters of the first token which broke when the suffix was appended
-        # at the end of the file name (``..._front.png``). Here we explicitly
-        # remove the suffix and compare the full file names to avoid mismatches.
-        # Besides ``_front`` and ``_zones`` we also generate masks with a
-        # ``_near_front`` suffix for the auxiliary near-front task. Strip any of
-        # these markers before comparing.
         label_base = (
-            label_name.replace("_near_fronts", "")
-            .replace("_near_front", "")
+            label_name.replace("_fronts", "")
             .replace("_front", "")
             .replace("_zones", "")
         )
-        near_base = (
-            label_near_name.replace("_near_fronts", "")
-            .replace("_near_front", "")
-            .replace("_front", "")
-            .replace("_zones", "")
-            )
         assert (
-            img_name == label_base == near_base
+            img_name == label_base
         ), (
             f"image and label name don't match. Image name: {img_name}. "
-            f"Label name: {label_name}. Near-front label name: {label_near_name}"
+            f"Label name: {label_name}."
         )
         image = cv2.imread(
             os.path.join(self.images_path, img_name).__str__(), cv2.IMREAD_GRAYSCALE
@@ -167,19 +148,11 @@ class GlacierDataset(Dataset):
         )
         
         if self.target == "fronts":
-            mask_near = cv2.imread(
-                os.path.join(self.near_targets_path, label_near_name).__str__(),
-                cv2.IMREAD_GRAYSCALE,
-            )
             if mask is None:
                 raise FileNotFoundError(
                     f"Front mask not found: {os.path.join(self.targets_path, label_name)}"
                 )
-            if mask_near is None:
-                raise FileNotFoundError(
-                    f"Near-front mask not found: {os.path.join(self.near_targets_path, label_near_name)}"
-                )
-            x, y = self.transform(image, (mask, mask_near))
+            x, y = self.transform(image, mask)
         else:
             if mask is None:
                 raise FileNotFoundError(
