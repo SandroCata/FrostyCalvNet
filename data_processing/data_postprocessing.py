@@ -9,10 +9,11 @@ import skimage.measure
 import skimage.color
 
 # Commenting out thickening-related imports
-
+"""
 from skimage.morphology import skeletonize
 from fil_finder import FilFinder2D
 import astropy.units as u
+"""
 
 
 # ################################################################################################################
@@ -272,7 +273,9 @@ def postprocess_zone_segmenation(mask):
 
 
 def extract_front_from_zones(zone_mask, front_length_threshold):
+
     """
+    
     Extract front prediction from zone segmentation by choosing the boundary between glacier and ocean as front and deleting to short fronts.
     :param zone_mask: zone segmentation prediction
     :param front_length_threshold: Threshold for deletion of too short front predictions
@@ -306,7 +309,7 @@ def extract_front_from_zones(zone_mask, front_length_threshold):
 
 
 def postprocess_front_segmentation(complete_predicted_mask, threshold_front_length):
-    
+    """
     
     #Post-process the front segmentation by skeletonization, filament extraction, and deletion of too short fronts
     #:param complete_predicted_mask: front segmentation prediction
@@ -338,5 +341,7 @@ def postprocess_front_segmentation(complete_predicted_mask, threshold_front_leng
             skeleton_longpaths[labeled_skeleton_longpaths == cluster_label] = 1
     return skeleton_longpaths
 
+    """
+
     """Placeholder function as thickening-based post-processing is disabled."""
-    #return complete_predicted_mask
+    return complete_predicted_mask
