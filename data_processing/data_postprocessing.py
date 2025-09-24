@@ -9,18 +9,10 @@ import skimage.measure
 import skimage.color
 
 # Commenting out thickening-related imports
-"""
+
 from skimage.morphology import skeletonize
 from fil_finder import FilFinder2D
 import astropy.units as u
-"""
-
-
-"""
-FUTURE IDEA (not to be implemented yet)
-Postprocessing needs to be changed in the sense that dethickened fronts are not needed anymore.
-Postprocessing for the second processing needs to display the two lines in-between the front line.
-"""
 
 
 # ################################################################################################################
@@ -314,7 +306,7 @@ def extract_front_from_zones(zone_mask, front_length_threshold):
 
 
 def postprocess_front_segmentation(complete_predicted_mask, threshold_front_length):
-    """
+    
     
     #Post-process the front segmentation by skeletonization, filament extraction, and deletion of too short fronts
     #:param complete_predicted_mask: front segmentation prediction
@@ -345,7 +337,6 @@ def postprocess_front_segmentation(complete_predicted_mask, threshold_front_leng
         else:
             skeleton_longpaths[labeled_skeleton_longpaths == cluster_label] = 1
     return skeleton_longpaths
-    """
 
     """Placeholder function as thickening-based post-processing is disabled."""
-    return complete_predicted_mask
+    #return complete_predicted_mask
