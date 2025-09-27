@@ -162,5 +162,47 @@ You can find below the related results:
 
 ![](utils/pics/MK0.png)
 
+###  Step 3.2 - MK0.5 variant
+
+Minor extension of the previous variant, with the only difference on a preprocess and postprocess step:
+
+in fact, here the thickening of front line labels process is removed and, accordingly, also the postprocess related part. 
+
+You can find below the related results:
+
+![](utils/pics/MK0.5.png)
+
+###  Step 3.3 - MK1 variant
+
+Extension of previous variant with introduction of double prediction: on front and on near front lines (and related mask generation script).
+
+You can find below the related results:
+
+![](utils/pics/MK1.png)
+
+###  Step 3.4 - MK2 variant
+
+Extension of previous variant with the replacement of DistanceMapBCE loss function for near front segmentation with Focal loss function (parameters: alpha = 0 and gamma = 1.0)
+
+You can find below the related results:
+
+![](utils/pics/MK2.png)
+
+###  Step 3.5 - MK3 variant
+
+Extension of previous variant with the replacement of Focal loss function for near front segmentation with combination of Dice and Focal loss functions (parameters: alpha = 0, gamma = 1.0, near_loss_focal_weight = 0.5 and near_loss_dice_weight = 0.5)
+
+You can find below the related results:
+
+![](utils/pics/MK3.png)
+
+###  Step 3.6 - MK4 variant
+
+Extension of previous variant with the replacement of DistanceMapBCE loss function for front segmentation with combination of Dice and Focal loss functions (parameters: alpha = 0, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
+
+You can find below the related results:
+
+![](utils/pics/MK4.png)
+
 
 
