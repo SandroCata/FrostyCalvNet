@@ -128,3 +128,39 @@ Other necessary command line arguments are:
   (you can see the validation loss in the name). 
   For zone segmentation, choose the checkpoint file that has the highest validation metric (IoU) 
   (you can see the validation metric in the name).
+
+## ❗Step 3 — Variants, Changes and Enhancements
+
+To better understand the improvements derived from my experiments, I developed different code variants.
+Each version was evaluated both against one another and in comparison with existing scientific papers addressing similar tasks.
+
+🔧 Common Experimental Settings
+
+All variants share the following setup and improvements compared to the original Calving Fronts paper:
+
+- Training epochs: 200
+
+- Dataset preprocessing: removal of ~90% empty image-mask pairs (no labels)
+
+- Front pixel ratio script: measures predicted vs. ground-truth pixels on validation/test sets
+
+- Validation strategy: not applied during training, but evaluated separately in dedicated sessions
+
+- MDE computation: optimized with KD-Tree for efficiency
+
+- Additional metrics: accuracy included alongside recall, IoU, F1, precision, MDE, and loss
+
+- Logging & visualization: all runs save logs and plots to track training and evaluation trends
+
+- EarlyStopping: not employed
+
+###  Step 3.1 - MK0 variant
+
+All the common and previously described features are implemented, it is basically the prototype and very first version of a new approach to the Calving Front paper baseline.
+
+You can find below the related results:
+
+![] (/utils/pics/MK0.png)
+
+
+
