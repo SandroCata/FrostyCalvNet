@@ -160,7 +160,7 @@ All the common and previously described features are implemented, it is basicall
 
 You can find below the related results:
 
-![] (/utils/pics/MK0.png)
+![] (utils/pics/MK0.png)
 
 
 
