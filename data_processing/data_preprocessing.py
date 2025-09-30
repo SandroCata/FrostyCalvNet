@@ -7,15 +7,18 @@ from sklearn.model_selection import train_test_split
 import pickle
 import cv2
 
+"""
 def thicken_fronts(mask):
-    """
-    Dilate front label with a 5x5 kernel.
-    :param mask: the front label
-    :return: the dilated front label
-    """
+    
+    #Dilate front label with a 5x5 kernel.
+    #:param mask: the front label
+    #:return: the dilated front label
+    
     kernel = np.ones((5, 5), np.uint8)
     mask_line_pad = cv2.dilate(mask, kernel, iterations=1)
-    return mask_line_pad
+   
+     return mask_line_pad
+"""
 
 #Step 3: Extract patches from source grayscale images (stride is the step with which the sliding window moves in vertical and horizontal direction)
 # Note that a (1,1) stride means that the patches overlap strongly whereas a (patch_size, patch_size) stride means that the patches do not overlap at all.
@@ -104,9 +107,10 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
         print(file)
         image = cv2.imread(file.__str__(), cv2.IMREAD_GRAYSCALE)
 
+        """
         if modality_dir == "fronts":
             image = thicken_fronts(image)
-
+        """
         # #####################################################################################################
         # Pad sides such that patch extraction works smoothly (Padding)
         # #####################################################################################################
