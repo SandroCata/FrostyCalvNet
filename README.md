@@ -182,7 +182,7 @@ You can find below the related results:
 
 ###  Step 3.4 - MK2 variant
 
-Extension of previous variant with the replacement of DistanceMapBCE loss function for near front segmentation with Focal loss function (parameters: alpha = 0 and gamma = 1.0)
+Extension of previous variant with the replacement of DistanceMapBCE loss function for near front segmentation with Focal loss function (parameters: alpha = 0.9 and gamma = 1.0)
 
 You can find below the related results:
 
@@ -190,7 +190,7 @@ You can find below the related results:
 
 ###  Step 3.5 - MK3 variant
 
-Extension of previous variant with the replacement of Focal loss function for near front segmentation with combination of Dice and Focal loss functions (parameters: alpha = 0, gamma = 1.0, near_loss_focal_weight = 0.5 and near_loss_dice_weight = 0.5)
+Extension of previous variant with the replacement of Focal loss function for near front segmentation with combination of Dice and Focal loss functions (parameters: alpha = 0.9, gamma = 1.0, near_loss_focal_weight = 0.5 and near_loss_dice_weight = 0.5)
 
 You can find below the related results:
 
@@ -198,11 +198,19 @@ You can find below the related results:
 
 ###  Step 3.6 - MK4 variant
 
-Extension of previous variant with the replacement of DistanceMapBCE loss function for front segmentation with combination of Dice and Focal loss functions (parameters: alpha = 0, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
+Extension of previous variant with the replacement of DistanceMapBCE loss function for front segmentation with combination of Dice and Focal loss functions (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
 
 You can find below the related results:
 
 ![](utils/pics/MK4.png)
+
+###  Step 3.7 - MK5 variant
+
+Coming back to single prediction on front but applying Foical&Dice Loss (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
+
+You can find below the related results:
+
+![](utils/pics/MK5.png)
 
 
 
