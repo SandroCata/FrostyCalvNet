@@ -206,7 +206,7 @@ You can find below the related results:
 
 ###  Step 3.7 - MK5 variant
 
-Coming back to single prediction on front but applying Foical&Dice Loss (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
+Coming back to single prediction on front but applying Focal&Dice Loss (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
 
 You can find below the related results:
 
