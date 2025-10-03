@@ -47,16 +47,17 @@ class FrontUNet(UNet):
     def __init__(self, hparams):
         
         super().__init__(hparams=hparams, metric=None, n_classes=1)
-        #self.w = hparams["w"]
-        #self.k = hparams["k"]
-        #self.relax = hparams["relax"]
-
+        self.w = hparams["w"]
+        self.k = hparams["k"]
+        self.relax = hparams["relax"]
+        """
         self.gamma = hparams["gamma"]
         self.alpha = hparams.get("alpha", None)
 
         self.loss_focal_weight = hparams.get("loss_focal_weight", 0.5)
         self.loss_dice_weight = hparams.get("loss_dice_weight", 0.5)
         self.dice = DiceLoss(mode="binary")
+        """
 
     def adapt_mask(self, y):
         return y.type(torch.float32)
@@ -97,7 +98,7 @@ class FrontUNet(UNet):
 
     def calc_loss(self, y_hat, y):
         y = self.adapt_mask(y)
-        """
+        
         dmap_criterion = DistanceMapBCE(self.device, w=self.w, k=self.k, relax=self.relax)
         loss = dmap_criterion(y_hat[:, 0], y[:, 0])
         """
@@ -111,8 +112,8 @@ class FrontUNet(UNet):
             self.loss_focal_weight * loss_front_focal
             + self.loss_dice_weight * loss_front_dice
         )
-        
-        return loss_front, self.class_wise_iou(y_hat, y)
+        """
+        return loss, self.class_wise_iou(y_hat, y)
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -122,16 +123,17 @@ class FrontUNet(UNet):
         parser.add_argument('--batch_size', default=16)
         parser.add_argument('--kernel_size', type=int, default=3)
 
-        parser.add_argument('--gamma', default=1.0, type=float, help="Gamma parameter for FocalLoss used for near segmentation")
-        parser.add_argument('--alpha', default=0.9, type=float, help="Alpha parameter for FocalLoss used for near segmentation")
+        # Focal and Dice Loss arguments
+        #parser.add_argument('--gamma', default=1.0, type=float, help="Gamma parameter for FocalLoss used for near segmentation")
+        #parser.add_argument('--alpha', default=0.9, type=float, help="Alpha parameter for FocalLoss used for near segmentation")
 
-        parser.add_argument('--loss_focal_weight', default=0.5, type=float, help="Weight for FocalLoss component of near segmentation loss")
-        parser.add_argument('--loss_dice_weight', default=0.5, type=float, help="Weight for DiceLoss component of near segmentation loss")
+        #parser.add_argument('--loss_focal_weight', default=0.5, type=float, help="Weight for FocalLoss component of near segmentation loss")
+        #parser.add_argument('--loss_dice_weight', default=0.5, type=float, help="Weight for DiceLoss component of near segmentation loss")
 
         # Loss arguments
-        #parser.add_argument('--k', default=0.1, type=float, help="Parameter for the distance map-based loss for front segmentation")
-        #parser.add_argument('--w', default=5, type=int, help="Parameter for the distance map-based loss for front segmentation")
-        #parser.add_argument('--relax', default=1, type=int, help="Parameter for the distance map-based loss for front segmentation")
+        parser.add_argument('--k', default=0.1, type=float, help="Parameter for the distance map-based loss for front segmentation")
+        parser.add_argument('--w', default=5, type=int, help="Parameter for the distance map-based loss for front segmentation")
+        parser.add_argument('--relax', default=1, type=int, help="Parameter for the distance map-based loss for front segmentation")
 
         
         # Hyperparameters for augmentation
