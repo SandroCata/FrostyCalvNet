@@ -1,3 +1,53 @@
+Differences from the Calving_Fronts_and_where_to_Find_Them baseline starting from MK0:
+
+Data and preprocessing ->
+
+    data_processing/data_preprocessing.py now works only on sar_images and fronts, appends the _front suffix to patches, and saves the branch-specific train/val indices (data_splits/train_idx.txt, val_idx.txt).
+
+    Dedicated scripts were introduced ->
+
+        filter_empty_patches.py to remove patches without fronts (with an option to keep a fraction of negatives).
+
+        generate_near_fronts.py to create “near-front” masks from the original labels.
+
+        compute_line_pixel_ratio.py to compare the number of predicted vs. ground-truth front pixels on validation/test sets, with a configurable CLI.
+
+    GlacierDataset has been made more robust: it handles BOM in shuffle files, checks the _front/_zones suffixes, and can skip preparing the validation set when not needed; GlacierFrontDataModule inherits the new load_val option so it can avoid loading the validation set during the main training run.
+
+    These changes contrast with the original implementation, which was more generic (fronts+zones) and relied on tricks for removing characters in filenames.
+
+Post-processing and evaluation ->
+
+    data_processing/data_postprocessing.py has been rewritten: it separates the flows for zones and fronts, rebuilds _front.png patches, applies customizable thresholds, and saves binary outputs with consistent names; the third-party version produced pickled multiclass patches and relied on standard suffixes.
+
+    validate_or_test.py now:
+
+        uses a KD-Tree for computing front→label distances (more efficient than the original cdist);
+
+        stores _front.png probabilities and also returns per-sample losses;
+
+        adds accuracy and confusion matrix for multiclass cases, handling dimension mismatches and filename suffixes;
+
+        introduces custom Lightning callbacks even for evaluation.
+
+        The original version did not handle dedicated suffixes, did not compute accuracy, and did not use a KD-Tree.
+
+Models, training, and callbacks ->
+
+    A new callbacks.py module provides OneBasedModelCheckpoint, OneBasedProgressBar (when available), and LossHistory, which saves loss plots; the third-party repo used only standard Lightning callbacks.
+
+    models/ParentUNet.py logs precision, recall, F1, and accuracy for train/val/test, prints end-of-epoch reports, and logs to TensorBoard; the original class did not calculate these aggregated metrics.
+
+    models/front_segmentation_model.py removes the dependency on torchmetrics.IoU, uses a custom binary IoU, applies weighted distance via DistanceMapBCE, and prepares the mask as a single-channel float.
+
+    train.py has been heavily restructured: it sets the log directory/version manually, logs everything to file, uses the new callbacks, resumes training from the most recent epoch=...ckpt checkpoint, and can disable the sanity check.
+    The third-party branch instead relied on temporary checkpoints temporary.ckpt, EarlyStopping, and different CLI parameters (e.g., default parent_dir=".", target_masks default "zones").
+
+    GlacierFrontDataModule/GlacierZonesDataModule are instantiated with load_val=False to defer validation to separate runs, a behavior not present in the original repo.
+
+
+
+
 
 MK0 -----------------
 
@@ -6,27 +56,41 @@ MK0 -----------------
 
 2) Analysis of results to start implementing new ideas and characteristics for improvement.
 
+3) Filtering dataset on an arbitrary percentage of empty images-masks.
+
+MK0.5 -----------------
+
+4) Extended from MK0 and removed mask line thickening.
+
 
 MK1.0 -----------------
 
 
-3) Double Prediction: front and near-front output.
+5) Extended from MK0.5 and double Prediction: front and near-front output.
 
-4) Adjusting preprocessing phase: deleting thickening and adding near-front masks creation from raw data
-
-5) Filtering dataset on an arbitrary percentage of empty images-masks.
+6) Loss on both prediction is DistanceMapBCE
 
 
-MK1.1 -----------------
+MK 2 -----------------
 
 
-6) Adjusting preprocessing phase: deleting thickening and adding near-front masks creation from raw data (here 3x3 front mask - front mask)
+7) Extended MK1 by replacing the loss function of near_front prediction: 
+DistanceMapBCE -> Focal Loss (alpha = 0.9, gamma = 1.0)
 
-7) Filtering dataset on an arbitrary percentage of empty images-masks. (deletion of 90% empty images)
-
-8) Loss on both prediction is DistanceMapBCE
-
-MK1.2 -----------------
+MK 3 -----------------
 
 
-9) Extended MK1 by replacing the loss function of near_front prediction: DistanceMapBCE -> Focal Loss (alpha = 0.9, gamma = 1.0)
+8) Extended MK1 by replacing the loss function of near_front prediction: 
+DistanceMapBCE -> Focal & Dice Loss 
+(alpha = 0.9, gamma = 1.0, near_loss_focal_weight = 0.5, near_loss_dice_weight = 0.5)
+
+MK 4 -----------------
+
+
+9) Extended MK3 by replacing the loss function of front prediction: 
+DistanceMapBCE -> Focal & Dice Loss 
+(alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5, front_loss_dice_weight = 0.5)
+
+MK 5 -----------------
+
+10) Coming back to single prediction on front but applying Focal&Dice Loss (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
