@@ -1,96 +1,67 @@
-# FrostyCalvNet
+# Calving Fronts and Where to Find Them: 
+## A Benchmark Dataset and Methodology for Automatic Glacier Calving Front Extraction from SAR Imagery
+Exact information on calving front positions of marine- or lake-terminating glaciers is a fundamental glacier variable for analyzing ongoing glacier change processes and assessing other variables like frontal ablation rates. 
+In recent years, researchers started implementing algorithms that could automatically detect the calving fronts on satellite imagery.
+Most studies use optical images, as in these images, calving fronts are often easy to distinguish due to sufficient spatial resolution and the presence of different spectral bands, allowing the separation of ice features.
+However, detecting calving fronts on SAR images is highly desirable, as SAR images can also be acquired during the polar night and are independent of weather conditions,  e.g., cloud cover, facilitating all-year monitoring worldwide.
+In this paper, we present a benchmark dataset of SAR images from multiple regions of the globe with corresponding manually defined labels to train and test approaches for the detection of glacier calving fronts. 
+The dataset is the first to provide long-term glacier calving front information from multi-mission data.
+As the dataset includes glaciers from Antarctica, Greenland and Alaska, the wide applicability of models trained and tested on this dataset is ensured.
+The test set is independent of the training set so that the generalization capabilities of the models can be evaluated.
+We provide two sets of labels: one binary segmentation label to discern the calving front from the background and one for multi-class segmentation of different landscape classes.
+Unlike other calving front datasets, the presented dataset contains not only the labels but also the corresponding preprocessed and geo-referenced SAR images as PNG files. 
+The ease of access to the dataset will allow scientists from other fields, such as data science, to contribute their expertise.
+With this benchmark dataset, we enable comparability between different front detection algorithms and improve the reproducibility of front detection studies.
+Moreover, we present one baseline model for each kind of label type. 
+Both models are based on the U-Net, one of the most popular deep learning segmentation architectures.
+Additionally, we introduce Atrous Spatial Pyramid Pooling to the bottleneck layer. 
+In the following two post-processing procedures, the segmentation results are converted into one-pixel-wide front delineations.
+By providing both types of labels, both approaches can be used to address the problem.
+To assess the performance of the models, we first review the segmentation results using the recall, precision, <img src="https://render.githubusercontent.com/render/math?math=F_1#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}F_1#gh-dark-mode-only">-score, and the Jaccard Index.
+Second, we evaluate the front delineation by calculating the mean distance error to the labeled front.
+The presented vanilla models provide a baseline of <img src="https://render.githubusercontent.com/render/math?math=150\,m\,\pm\,24\,m#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}150\,m\,\pm\,24\,m#gh-dark-mode-only"> mean distance error for the Mapple Glacier in Antarctica and <img src="https://render.githubusercontent.com/render/math?math=840\,m\,\pm\,84\,m#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}840\,m\,\pm\,84\,m#gh-dark-mode-only"> for the Columbia Glacier in Alaska, which has a more complex calving front, consisting of multiple sections, as compared to a laterally well constrained, single calving front of Mapple Glacier.
 
-## 📌 Overview
 
-This repository is part of the research work conducted for a Master's thesis in Engineering in Computer Science at the University of Rome "La Sapienza". 
+For more information, please read the following paper:
 
-The study focuses on the application of Deep Learning techniques for the automatic detection of glacier calving fronts from satellite imagery.
+> Gourmelon, N., Seehaus, T., Braun, M., Maier, A., Christlein, V.: Calving Fronts and Where to Find Them: A Benchmark Dataset and Methodology for Automatic Glacier Calving Front Extraction from SAR Imagery, In Prep.
 
-The objective of this thesis is to design, implement, and evaluate deep neural network architectures capable of accurately segmenting glacier front boundaries, in order to analyze the melting and retreat processes affecting various glaciers worldwide. The analysis spans a temporal range from 1995 to 2020, using SAR satellite images and geospatial data provided primarily by the CAFFEE dataset.
+Please also cite this paper if you are using one of the presented models or the dataset.
 
-By leveraging solid segmentation models (such as Calving_Fronts_and_Where_to_Find_Them, AMD-HookNet, Bayesian U-Net, and other convolutional and transformer-based networks) this project aims to provide both precise front delineation and an estimation of glacier evolution patterns over time. The ultimate goal is to produce a system that not only offers retrospective insights on glacier behavior, but that may also serve as a foundation for future applications in climate change monitoring, glaciology, and environmental risk assessment.
 
+## Installation
 
 ---
 
-## 📂 Project Structure
+Training of the models requires a GPU with at least 11 GB of VRAM.
+Install all requirements using:
+    
+    pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
+    pip install -r requirements.txt
 
-```bash
-FrostyCalvNet/
-│
-├── data_processing/       # Pre and Postprocessing operations
-├── env/                   # Script to create and setup conda env
-├── gifs/                  # Animated images
-├── models/                # Neural networks to be used
-├── utils/                 # References and Documentation
-├── train.py               # Entry point for training
-├── validate_or_test.py    # Entry point for validation\test
-├── requirements.txt       # Additional env requirements
-└── README.md
-```
+
+## Usage
 
 ---
 
-## 🧭 Step 1 — Literature Review & Research
+### Data Preparation
 
-Most coherent and relevant Neural Networks: 
-
-- Calving_Fronts_and_Where_to_Find_Them,
-- Remote Sensing,
-- AMD-HookNet,
-- Bayesian U-Net,
-- CALFIN.
-
-Related Papers:
-
-- Calving fronts and where to find them: a benchmark dataset and methodology for automatic glacier calving front extraction from synthetic aperture radar imagery
-- Remote Sensing - Detection of Glacier Calving Margins with Convolutional Neural Networks: A Case Study
-- AMD-HookNet for Glacier Front Segmentation (Wu et al., 2023)
-- Bayesian U-Net for Glacier Segmentation in SAR Imagery
-- Calving Front Machine (CALFIN): glacial termini dataset and automated deep learning extraction method for Greenland, 1972-2019
-
-Selected Dataset: 
-
-- CAFFEE Dataset
-
-## 🚀 Step 2 — Developing new ideas from Calving_Fronts_and_Where_to_Find_Them on CAFFEE
-
-Deep study of related paper and code, especially for:
-
-- Getting acquainted with data and neural network structure.
-- Understanding its complexity
-- Examining its results
-- Looking for improvements and original ideas to integrate
-
-### Step 2.0 - Conda Environment Creation and Setup
-
-Run the script `'/env/setup_conda_env.sh'` to create and prepare the conda environment.
-
-### Step 2.1 - Data Preparation
+---
 
 Download data here: https://doi.org/10.1594/PANGAEA.940950
 
-And copy the content of the downloaded `/data_raw/CAFFE` into a folder named `/data_raw` in the parent directory of `/FrostyCalvNet` (beside of it).
-Run then the `data_processing/check_raw_data_is_correct.py`, so that you can check that nothing broke during the download.
+And copy it to `/Benchmark_SAR_Glacier_Segmentation/data_raw`.
+Running the `data_processing/check_raw_data_is_correct.py` allows you to check that nothing broke during the download.
 
-Next, generate the near-front masks by running `data_processing/generate_near_front.py`.
-This script reads the front labels in `data_raw/fronts` and stores the derived masks in `data_raw/near_fronts`.
+Next, run the `data_processing/data_preprocessing.py` script to preprocess the data. 
+This will split the training data into validation and training sets, as used in the paper. 
+If you prefer to use a new random val-train-split, 
+please delete `data_processing/data_splits/train_idx.txt` and `data_processing/data_splits/val_idx.txt`.
+Moreover, `data_processing/data_preprocessing.py` thickens the front labels and divides the images and labels into patches 
+and stores them in the new directory `data_2`.
 
-Finally, run the `data_processing/data_preprocessing.py` script to preprocess the data.
-This will split the training data into validation and training sets, as used in the paper, and divide the images and labels into patches, storing them in the new directory `data`, which will be beside `/data_raw` and `/FrostyCalvNet`. 
-If you prefer to use a new random val-train-split, please delete `data_processing/data_splits/train_idx.txt` and `data_processing/data_splits/val_idx.txt`.
 
-After preprocessing, you can optionally remove patches that contain no labeled pixels by running:
-
-    python data_processing/filter_empty_patches.py
-
-This utility scans the processed `data` directory and deletes patch triplets with empty ground-truth masks
-across the `train`, `val`, and `test` splits while keeping a small fraction of negative examples (controlled
-via the `--keep_ratio` argument).
-
-A `/FrostyCalvNet/data_splts` folder will be created with two .txt file: `train_idx.txt` and `val_idx.txt`.
-
-### Step 2.2 - Model Training
+### Model Training
 
 ---
 
@@ -108,7 +79,7 @@ Run the following to see what you can alter:
 
     python3 train.py -h
 
-### Step 2.3 - Validation and Testing
+### Validation and Testing
 
 ---
 
@@ -128,89 +99,5 @@ Other necessary command line arguments are:
   (you can see the validation loss in the name). 
   For zone segmentation, choose the checkpoint file that has the highest validation metric (IoU) 
   (you can see the validation metric in the name).
-
-## ❗Step 3 — Variants, Changes and Enhancements
-
-To better understand the improvements derived from my experiments, I developed different code variants.
-Each version was evaluated both against one another and in comparison with existing scientific papers addressing similar tasks.
-
-🔧 Common Experimental Settings
-
-All variants share the following setup and improvements compared to the original Calving Fronts paper:
-
-- Training epochs: 200
-
-- Dataset preprocessing: removal of ~90% empty image-mask pairs (no labels)
-
-- Front pixel ratio script: measures predicted vs. ground-truth pixels on validation/test sets
-
-- Validation strategy: not applied during training, but evaluated separately in dedicated sessions
-
-- MDE computation: optimized with KD-Tree for efficiency
-
-- Additional metrics: accuracy included alongside recall, IoU, F1, precision, MDE, and loss
-
-- Logging & visualization: all runs save logs and plots to track training and evaluation trends
-
-- EarlyStopping: not employed
-
-###  Step 3.1 - MK0 variant
-
-All the common and previously described features are implemented, it is basically the prototype and very first version of a new approach to the Calving Front paper baseline.
-
-You can find below the related results:
-
-![](utils/pics/MK0.png)
-
-###  Step 3.2 - MK0.5 variant
-
-Minor extension of the previous variant, with the only difference on a preprocess and postprocess step:
-
-in fact, here the thickening of front line labels process is removed and, accordingly, also the postprocess related part. 
-
-You can find below the related results:
-
-![](utils/pics/MK0.5.png)
-
-###  Step 3.3 - MK1 variant
-
-Extension of previous variant with introduction of double prediction: on front and on near front lines (and related mask generation script).
-
-You can find below the related results:
-
-![](utils/pics/MK1.png)
-
-###  Step 3.4 - MK2 variant
-
-Extension of previous variant with the replacement of DistanceMapBCE loss function for near front segmentation with Focal loss function (parameters: alpha = 0.9 and gamma = 1.0)
-
-You can find below the related results:
-
-![](utils/pics/MK2.png)
-
-###  Step 3.5 - MK3 variant
-
-Extension of previous variant with the replacement of Focal loss function for near front segmentation with combination of Dice and Focal loss functions (parameters: alpha = 0.9, gamma = 1.0, near_loss_focal_weight = 0.5 and near_loss_dice_weight = 0.5)
-
-You can find below the related results:
-
-![](utils/pics/MK3.png)
-
-###  Step 3.6 - MK4 variant
-
-Extension of previous variant with the replacement of DistanceMapBCE loss function for front segmentation with combination of Dice and Focal loss functions (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
-
-You can find below the related results:
-
-![](utils/pics/MK4.png)
-
-###  Step 3.7 - MK5 variant
-
-Coming back to single prediction on front but applying Focal&Dice Loss (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
-
-You can find below the related results:
-
-![](utils/pics/MK5.png)
-
-
-
+  
+We also provide pretrained checkpoints that you can test at Zenodo (https://zenodo.org/record/6469519), simply adapt the command line arguments accordingly.
