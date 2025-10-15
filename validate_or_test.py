@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from models.zones_segmentation_model import ZonesUNet
-from models.front_segmentation_model import FrontUNet
+from models.front_segmentation_model import FrontUNet, FrontDeepLab
 from data_processing.glacier_zones_data import GlacierZonesDataModule
 from data_processing.glacier_front_data import GlacierFrontDataModule
 from data_processing.data_postprocessing import reconstruct_from_patches_and_binarize
@@ -10,6 +10,7 @@ from data_processing.data_postprocessing import (
     extract_front_from_zones,
 )
 import os
+import yaml
 import pickle
 import torch
 import re
@@ -801,11 +802,11 @@ if __name__ == "__main__":
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"
                              "(checkpoints/..._segmentation/run_?).")
-    parser.add_argument('--version_number', default=1,
+    parser.add_argument('--version_number', default=2,
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="epoch=200-avg_train_loss=0.43.ckpt",
+    parser.add_argument('--checkpoint_file', default="epoch=200-avg_train_loss=0.41.ckpt",
                         help="The name of the checkpoint file you want to load.")
     parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")
@@ -820,9 +821,25 @@ if __name__ == "__main__":
         assert os.path.isfile(os.path.join(src, "checkpoints", "fronts_segmentation", "run_" + str(hparams.run_number), hparams.checkpoint_file)), "Checkpoint file does not exist"
         assert os.path.isfile(os.path.join(src, "tb_logs", "fronts_segmentation", "run_" + str(hparams.run_number), "log", "version_" + str(hparams.version_number), "hparams.yaml")), "hparams file does not exist"
 
-        model = FrontUNet.load_from_checkpoint(
+        hparams_file = os.path.join(
+            src,
+            "tb_logs",
+            "fronts_segmentation",
+            "run_" + str(hparams.run_number),
+            "log",
+            "version_" + str(hparams.version_number),
+            "hparams.yaml",
+        )
+
+        with open(hparams_file, "r") as fp:
+            saved_hparams = yaml.safe_load(fp) or {}
+
+        model_arch = saved_hparams.get("model_arch", "unet")
+        model_cls = FrontDeepLab if model_arch == "deeplab" else FrontUNet
+
+        model = model_cls.load_from_checkpoint(
             checkpoint_path=os.path.join(src, "checkpoints", "fronts_segmentation", "run_" + str(hparams.run_number), hparams.checkpoint_file),
-            hparams_file=os.path.join(src, "tb_logs", "fronts_segmentation", "run_" + str(hparams.run_number), "log", "version_" + str(hparams.version_number), "hparams.yaml"),
+            hparams_file=hparams_file,
             map_location=None
         )
         datamodule = GlacierFrontDataModule(batch_size=model.hparams.batch_size, augmentation=False, parent_dir=hparams.data_parent_dir, bright=0, wrap=0, noise=0, rotate=0, flip=0)

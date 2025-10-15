@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from models.zones_segmentation_model import ZonesUNet
-from models.front_segmentation_model import FrontUNet
+from models.front_segmentation_model import FrontUNet, FrontDeepLab
 from data_processing.glacier_zones_data import GlacierZonesDataModule
 from data_processing.glacier_front_data import GlacierFrontDataModule
 from pytorch_lightning import Trainer, seed_everything
@@ -150,7 +150,11 @@ def main(hparams, run_number, running_mode, version_number):
                                             rotate=hparams.rotate,
                                             flip=hparams.flip,
                                             load_val=False) # Flase = skip validation, True otherwise
-        model = FrontUNet(vars(hparams))
+        model_hparams = vars(hparams)
+        if hparams.model_arch == 'deeplab':
+            model = FrontDeepLab(model_hparams)
+        else:
+            model = FrontUNet(model_hparams)
 
     summary(model.cuda(), (1, 256, 256))
     print(model.eval())
@@ -184,7 +188,7 @@ if __name__ == '__main__':
     parent_parser.add_argument('--target_masks', default="fronts", help="Either 'fronts' or 'zones'. "
                                                                         "This decides which model will be trained.")
 
-    tmp = parent_parser.parse_args()
+    tmp, _ = parent_parser.parse_known_args()
     if tmp.target_masks == "fronts":
         parser = FrontUNet.add_model_specific_args(parent_parser)
     else:

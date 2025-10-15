@@ -1,9 +1,10 @@
+import torch
 import torch.nn as nn
+import segmentation_models_pytorch as smp
+from einops import rearrange
 from models.ParentUNet import UNet
 from scipy.ndimage.morphology import distance_transform_edt as edt
-import torch
 #import torchmetrics
-from einops import rearrange
 import numpy as np
 import cv2 
 from segmentation_models_pytorch.losses import FocalLoss, DiceLoss
@@ -13,7 +14,7 @@ class DistanceMapBCE(nn.Module):
     def __init__(self, device, w, k, relax):
         super(DistanceMapBCE, self).__init__()
         self.device = device
-        self.w = w  # paramter w of dmap loss
+        self.w = w  # parameter w of dmap loss
         self.k = k  # parameter k of dmap loss
         self.relax = relax
 
@@ -32,9 +33,9 @@ class DistanceMapBCE(nn.Module):
         else:
             kernel = np.ones((self.w, self.w), dtype=np.float32)
             fat_gt = cv2.dilate(target.cpu().numpy(), kernel)
-            euclidean_distance_transformed = torch.from_numpy(edt(fat_gt)).to(self.device).type(torch.float32)  # normalize to 0 - 1 for edt change background to 0 only edt inside the dilated front
+            euclidean_distance_transformed = torch.from_numpy(edt(fat_gt)).to(self.device).type(torch.float32)
             soft_gt = torch.sigmoid(torch.div(euclidean_distance_transformed, self.relax))
-            # Normalize this so it is between 0 and 1 (-> all background will be 0)
+            
             soft_gt = torch.sub(soft_gt, torch.min(soft_gt))
             soft_gt = torch.div(soft_gt, torch.max(soft_gt))
             distance_map_image = soft_gt + (1 - torch.from_numpy(fat_gt).to(self.device).type(torch.float32)) * self.k
@@ -42,7 +43,7 @@ class DistanceMapBCE(nn.Module):
         return distance_map_image
 
 
-class FrontUNet(UNet):
+class FrontSegmentationModelBase(UNet):
 
     def __init__(self, hparams):
         
@@ -52,7 +53,11 @@ class FrontUNet(UNet):
         self.k = hparams["k"]
         self.relax = hparams["relax"]""
         """
-        
+        self.model_arch = hparams.get("model_arch", "unet")
+        self.encoder_name = hparams.get("encoder_name", "resnet50")
+        self.encoder_weights = hparams.get("encoder_weights", "imagenet")
+        self.encoder_output_stride = hparams.get("encoder_output_stride", 16)
+
         self.gamma = hparams["gamma"]
         self.alpha = hparams.get("alpha", None)
 
@@ -67,9 +72,7 @@ class FrontUNet(UNet):
     def make_batch_dictionary(self, loss, metric, name_of_loss):
         """ Give batch_dictionary corresponding to the number of metrics for front segmentation """
         batch_dictionary = {
-            # REQUIRED: It is required for us to return "loss"
             name_of_loss: loss,
-            # info to be used at epoch end
             "IoU": metric,
         }
         return batch_dictionary
@@ -119,7 +122,15 @@ class FrontUNet(UNet):
 
     @staticmethod
     def add_model_specific_args(parent_parser):
-        parser = parent_parser.add_argument_group("UNet")
+        parser = parent_parser.add_argument_group("FrontSegmentation")
+        parser.add_argument('--model_arch', default='unet', choices=['unet', 'deeplab'],
+                            help="Architecture to use for front segmentation.")
+        parser.add_argument('--encoder_name', default='resnet50',
+                            help="Encoder backbone for DeepLabV3+. Ignored for U-Net.")
+        parser.add_argument('--encoder_weights', default='imagenet',
+                            help="Pre-trained weights for the encoder. Use 'None' to disable.")
+        parser.add_argument('--encoder_output_stride', type=int, default=16,
+                            help="Encoder output stride for DeepLabV3+. Ignored for U-Net.")
         parser.add_argument('--base_lr', default=1e-4)
         parser.add_argument('--max_lr', default=5e-4)
         parser.add_argument('--batch_size', default=16)
@@ -149,3 +160,27 @@ class FrontUNet(UNet):
         # Layer arguments
         parser.add_argument('--aspp', default=True, type=lambda x: (str(x).lower() == 'true'))
         return parent_parser
+    
+class FrontUNet(FrontSegmentationModelBase):
+
+    def __init__(self, hparams):
+        super().__init__(hparams)
+
+
+class FrontDeepLab(FrontSegmentationModelBase):
+
+    def __init__(self, hparams):
+        super().__init__(hparams)
+        encoder_weights = self.encoder_weights
+        if isinstance(encoder_weights, str) and encoder_weights.lower() == 'none':
+            encoder_weights = None
+        self.backbone = smp.DeepLabV3Plus(
+            encoder_name=self.encoder_name,
+            encoder_weights=encoder_weights,
+            in_channels=self.n_channels_of_input,
+            classes=self.n_classes,
+            encoder_output_stride=self.encoder_output_stride,
+        )
+
+    def forward(self, x):
+        return self.backbone(x)
