@@ -647,6 +647,8 @@ if __name__ == "__main__":
             hparams_file=os.path.join(src, "tb_logs", "fronts_segmentation", "run_" + str(hparams.run_number), "log", "version_" + str(hparams.version_number), "hparams.yaml"),
             map_location=None
         )
+        if hasattr(model, "front_architecture"):
+            print(f"Loaded front segmentation architecture: {model.front_architecture}")
         datamodule = GlacierFrontDataModule(batch_size=model.hparams.batch_size, augmentation=False, parent_dir=hparams.data_parent_dir, bright=0, wrap=0, noise=0, rotate=0, flip=0)
     else:
         assert os.path.isfile(os.path.join(src, "checkpoints", "zones_segmentation", "run_" + str(hparams.run_number), hparams.checkpoint_file)), "Checkpoint file does not exist"

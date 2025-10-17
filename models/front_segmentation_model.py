@@ -1,12 +1,13 @@
+import torch
 import torch.nn as nn
+import segmentation_models_pytorch as smp
+from einops import rearrange
 from models.ParentUNet import UNet
 from scipy.ndimage.morphology import distance_transform_edt as edt
-import torch
 import torchmetrics
-from einops import rearrange
 import numpy as np
-import cv2
-from segmentation_models_pytorch.losses.dice import DiceLoss
+import cv2 
+from segmentation_models_pytorch.losses import DiceLoss
 
 
 class DistanceMapBCE(nn.Module):
@@ -47,6 +48,22 @@ class FrontUNet(UNet):
     def __init__(self, hparams):
         # Front, Background -> binary hence one output channel (=n_classes) is sufficient
         # for IoU num_classes=2, as we want to differentiate between background and foreground IoU
+        self.front_architecture = hparams.get("front_architecture", "unet").lower()
+        self.use_deeplab = self.front_architecture in {"deeplabv3+", "deeplab", "deeplabv3p"}
+        self.deeplab_encoder_name = hparams.get("deeplab_encoder_name", "resnet50")
+        self.deeplab_encoder_weights = hparams.get("deeplab_encoder_weights", None)
+        if isinstance(self.deeplab_encoder_weights, str) and self.deeplab_encoder_weights.lower() in {"none", "null", ""}:
+            self.deeplab_encoder_weights = None
+        self.deeplab_output_stride = int(hparams.get("deeplab_output_stride", 16))
+        self.deeplab_decoder_channels = int(hparams.get("deeplab_decoder_channels", 256))
+        decoder_atrous_rates = hparams.get("deeplab_decoder_atrous_rates", (12, 24, 36))
+        if isinstance(decoder_atrous_rates, str):
+            decoder_atrous_rates = tuple(int(rate.strip()) for rate in decoder_atrous_rates.split(",") if rate.strip())
+        elif isinstance(decoder_atrous_rates, list):
+            decoder_atrous_rates = tuple(decoder_atrous_rates)
+        self.deeplab_decoder_atrous_rates = decoder_atrous_rates if len(decoder_atrous_rates) > 0 else (12, 24, 36)
+        self.deeplab = None
+
         super().__init__(hparams=hparams, metric=torchmetrics.IoU(num_classes=2, reduction="none", absent_score=1.0), n_classes=1)
         self.w = hparams["w"]
         self.k = hparams["k"]
@@ -91,6 +108,25 @@ class FrontUNet(UNet):
         criterion = DistanceMapBCE(self.device, w=self.w, k=self.k, relax=self.relax)
         loss = criterion(y_hat, y)
         return loss, self.class_wise_iou(torch.greater_equal(y_hat, 0), y)
+    
+    def make_layer_structure(self):
+        if self.use_deeplab:
+            self.deeplab = smp.DeepLabV3Plus(
+                encoder_name=self.deeplab_encoder_name,
+                encoder_weights=self.deeplab_encoder_weights,
+                in_channels=self.n_channels_of_input,
+                classes=self.n_classes,
+                encoder_output_stride=self.deeplab_output_stride,
+                decoder_channels=self.deeplab_decoder_channels,
+                decoder_atrous_rates=self.deeplab_decoder_atrous_rates,
+            )
+            return nn.ModuleList(), None
+        return super().make_layer_structure()
+
+    def forward(self, x):
+        if self.use_deeplab and self.deeplab is not None:
+            return self.deeplab(x)
+        return super().forward(x)
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -114,4 +150,16 @@ class FrontUNet(UNet):
 
         # Layer arguments
         parser.add_argument('--aspp', default=True, type=lambda x: (str(x).lower() == 'true'))
+        parser.add_argument('--front_architecture', '--model_arch', dest='front_architecture', default='unet', choices=['unet', 'deeplab', 'deeplabv3+', 'deeplabv3p'],
+                            help="Choose between the original UNet baseline and DeepLabV3+ for front segmentation.")
+        parser.add_argument('--deeplab_encoder_name', default='resnet50',
+                            help="Encoder backbone to use when --front_architecture is set to DeepLabV3+.")
+        parser.add_argument('--deeplab_encoder_weights', default=None,
+                            help="Pretrained weights for the DeepLabV3+ encoder. Set to 'imagenet' or leave empty for None.")
+        parser.add_argument('--deeplab_output_stride', type=int, default=16,
+                            help="Output stride for DeepLabV3+ encoder.")
+        parser.add_argument('--deeplab_decoder_channels', type=int, default=256,
+                            help="Number of channels in DeepLabV3+ decoder.")
+        parser.add_argument('--deeplab_decoder_atrous_rates', default='12,24,36',
+                            help="Comma separated atrous rates for DeepLabV3+ decoder.")
         return parent_parser

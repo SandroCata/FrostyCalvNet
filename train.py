@@ -109,6 +109,8 @@ def main(hparams, run_number, running_mode):
                                             rotate=hparams.rotate,
                                             flip=hparams.flip)
         model = FrontUNet(vars(hparams))
+        if hasattr(model, "front_architecture"):
+            print(f"Using front segmentation architecture: {model.front_architecture}")
 
     summary(model.cuda(), (1, 256, 256))
     print(model.eval())
@@ -146,7 +148,7 @@ if __name__ == '__main__':
     parent_parser.add_argument('--target_masks', default="fronts", help="Either 'fronts' or 'zones'. "
                                                                         "This decides which model will be trained.")
 
-    tmp = parent_parser.parse_args()
+    tmp, _ = parent_parser.parse_known_args()
     if tmp.target_masks == "fronts":
         parser = FrontUNet.add_model_specific_args(parent_parser)
     else:
@@ -164,7 +166,7 @@ if __name__ == '__main__':
     start_save = time.time()
     main(hparams, hparams.run_number, hparams.training_mode)
     end_save = time.time()
-    print(f"Total time for training: {end_save - start_save}")
+    print(f"Total time for training: {(end_save - start_save)/60:.2f} minutes")
 
     # run the following if you want to open tensorboard
     # tensorboard --logdir tb_logs
