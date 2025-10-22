@@ -21,7 +21,7 @@ def main(hparams, run_number, running_mode):
         tb_logs_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(run_number))
         checkpoint_callback = ModelCheckpoint(monitor='avg_metric_validation',
                                               dirpath=checkpoint_dir,
-                                              filename='-{epoch:02d}-{avg_metric_validation:.2f}',
+                                              filename='{epoch:02d}-{avg_metric_validation:.2f}',
                                               mode='max',  # Here: the higher the IoU the better
                                               save_top_k=1)
         early_stop_callback = EarlyStopping(monitor="avg_metric_validation", patience=30,
@@ -32,7 +32,7 @@ def main(hparams, run_number, running_mode):
         tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(run_number))
         checkpoint_callback = ModelCheckpoint(monitor='avg_loss_validation',
                                               dirpath=checkpoint_dir,
-                                              filename='-{epoch:02d}-{avg_loss_validation:.2f}',
+                                              filename='{epoch:02d}-{avg_loss_validation:.2f}',
                                               mode='min',  # Here: the lower the loss the better
                                               save_top_k=1)
         early_stop_callback = EarlyStopping(monitor="avg_loss_validation", patience=30,
@@ -43,15 +43,108 @@ def main(hparams, run_number, running_mode):
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
     # if we have already trained this model take up the training at the last checkpoint
-    if os.path.isfile(checkpoint_dir + "temporary.ckpt"):
+    resume_checkpoint_path = os.path.join(checkpoint_dir, "temporary.ckpt")
+    checkpoint_state = None
+    checkpoint_hparams = {}
+    if os.path.isfile(resume_checkpoint_path):
+        checkpoint_state = torch.load(resume_checkpoint_path, map_location="cpu")
+        checkpoint_hparams = checkpoint_state.get("hyper_parameters", {})
+
+    if hparams.target_masks == "fronts" and checkpoint_hparams:
+        defaults = getattr(hparams, "_resume_defaults", {})
+        front_keys = [
+            "front_architecture",
+            "deeplab_encoder_name",
+            "deeplab_encoder_weights",
+            "deeplab_output_stride",
+            "deeplab_decoder_channels",
+            "deeplab_decoder_atrous_rates",
+        ]
+        for key in front_keys:
+            if key not in checkpoint_hparams:
+                continue
+            ckpt_value = checkpoint_hparams[key]
+            current_value = getattr(hparams, key, None)
+            default_value = defaults.get(key)
+            if key == "front_architecture":
+                ckpt_value = str(ckpt_value).lower()
+                if current_value is None or (
+                    default_value is not None
+                    and str(current_value).lower() == str(default_value).lower()
+                ):
+                    setattr(hparams, key, ckpt_value)
+                elif str(current_value).lower() != ckpt_value:
+                    raise ValueError(
+                        f"Checkpoint front_architecture '{ckpt_value}' does not match requested front_architecture "
+                        f"'{current_value}'. Delete the checkpoint or run with matching flags."
+                    )
+            else:
+                if current_value is None or (
+                    default_value is not None and current_value == default_value
+                ):
+                    setattr(hparams, key, ckpt_value)
+                elif current_value != ckpt_value:
+                    raise ValueError(
+                        f"Checkpoint value for {key} ('{ckpt_value}') does not match the requested value "
+                        f"('{current_value}'). Delete the checkpoint or use matching flags."
+                    )
+
+    if checkpoint_state is not None:
+        defaults = getattr(hparams, "_resume_defaults", {})
+        checkpoint_epochs = checkpoint_hparams.get("epochs")
+        default_epochs = defaults.get("epochs")
+        if checkpoint_epochs is not None and (
+            hparams.epochs is None
+            or (default_epochs is not None and hparams.epochs == default_epochs)
+        ):
+            hparams.epochs = checkpoint_epochs
+
+    trainer_max_epochs = hparams.epochs
+
+    if checkpoint_state is not None:
+        checkpoint_epoch = checkpoint_state.get("epoch")
+        if checkpoint_epoch is not None:
+            completed_epochs = int(checkpoint_epoch)
+            additional_epochs = hparams.epochs
+            if additional_epochs is None:
+                additional_epochs = checkpoint_hparams.get("epochs")
+            if additional_epochs is None:
+                additional_epochs = 0
+            additional_epochs = int(additional_epochs)
+            if additional_epochs < 0:
+                raise ValueError(
+                    "--epochs must be greater than or equal to 0 when resuming from a checkpoint."
+                )
+
+            trainer_max_epochs = completed_epochs + additional_epochs
+            if additional_epochs > 0:
+                print(
+                    "Resuming from checkpoint: completed {completed_epochs} epoch(s); "
+                    "training for {additional_epochs} additional epoch(s) (max_epochs={trainer_max_epochs})."
+                    .format(
+                        completed_epochs=completed_epochs,
+                        additional_epochs=additional_epochs,
+                        trainer_max_epochs=trainer_max_epochs,
+                    )
+                )
+            elif additional_epochs == 0:
+                print(
+                    "Checkpoint already completed {completed_epochs} epoch(s); --epochs is 0 so no new epochs will be run."
+                    .format(completed_epochs=completed_epochs)
+                )
+
+    if trainer_max_epochs is not None:
+        trainer_max_epochs = int(trainer_max_epochs)
+
+    if os.path.isfile(resume_checkpoint_path):
         print("Taking up the training where it was left (temporary checkpoint)")
-        trainer = Trainer(resume_from_checkpoint=checkpoint_dir + "temporary.ckpt",
+        trainer = Trainer(resume_from_checkpoint=resume_checkpoint_path,
                           callbacks=[early_stop_callback, checkpoint_callback, lr_monitor],
                           deterministic=True,
                           gpus=1,  # Train on gpu
                           gradient_clip_val=clip_norm,
                           logger=logger,
-                          max_epochs=hparams.epochs)
+                          max_epochs=trainer_max_epochs)
     else:
         if running_mode == "batch_overfit":
             # Try to overfit on some batches
@@ -83,7 +176,7 @@ def main(hparams, run_number, running_mode):
                                                  gpus=1,  # Train on gpu
                                                  gradient_clip_val=clip_norm,
                                                  logger=logger,
-                                                 max_epochs=hparams.epochs)
+                                                 max_epochs=trainer_max_epochs)
         else:
             print("Running mode not recognized")
             sys.exit()
@@ -119,9 +212,9 @@ def main(hparams, run_number, running_mode):
 
     # create a checkpoint if we are training (and delete the old one if it exists)
     if running_mode == "training":
-        if os.path.isfile(checkpoint_dir + "temporary.ckpt"):
-            os.remove(checkpoint_dir + "temporary.ckpt")
-        trainer.save_checkpoint(filepath=checkpoint_dir + "temporary.ckpt")
+        if os.path.isfile(resume_checkpoint_path):
+            os.remove(resume_checkpoint_path)
+        trainer.save_checkpoint(filepath=resume_checkpoint_path)
 
 
 if __name__ == '__main__':
@@ -135,7 +228,7 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=2, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=50, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "
@@ -155,6 +248,22 @@ if __name__ == '__main__':
         parser = ZonesUNet.add_model_specific_args(parent_parser)
     parser = Trainer.add_argparse_args(parser)
     hparams = parser.parse_args()
+
+    resume_sensitive_args = [
+        "front_architecture",
+        "deeplab_encoder_name",
+        "deeplab_encoder_weights",
+        "deeplab_output_stride",
+        "deeplab_decoder_channels",
+        "deeplab_decoder_atrous_rates",
+    ]
+    defaults_for_resume = {}
+    for arg in resume_sensitive_args:
+        try:
+            defaults_for_resume[arg] = parser.get_default(arg)
+        except (AttributeError, KeyError):
+            continue
+    setattr(hparams, "_resume_defaults", defaults_for_resume)
 
     print(vars(hparams))
 

@@ -618,20 +618,20 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(add_help=False)
     parser.add_argument('--mode', default="validate", help="Either 'validate' or 'test'.")
-    parser.add_argument('--target_masks', default="zones", help="Either 'fronts' or 'zones'.")
-    parser.add_argument('--run_number', default=3,
+    parser.add_argument('--target_masks', default="fronts", help="Either 'fronts' or 'zones'.")
+    parser.add_argument('--run_number', default=0,
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"
                              "(checkpoints/..._segmentation/run_?).")
-    parser.add_argument('--version_number', default=0,
+    parser.add_argument('--version_number', default=5,
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="-epoch=144-avg_loss_validation=0.58.ckpt",
+    parser.add_argument('--checkpoint_file', default="temporary.ckpt",
                         help="The name of the checkpoint file you want to load.")
-    parser.add_argument('--data_raw_parent_dir', default=".",
+    parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")
-    parser.add_argument('--data_parent_dir', default=".",
+    parser.add_argument('--data_parent_dir', default="../",
                         help="Where the data directory lies, default: .")
     hparams = parser.parse_args()
 
