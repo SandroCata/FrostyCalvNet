@@ -12,7 +12,7 @@ import re
 import cv2
 import numpy as np
 from scipy.spatial import distance
-from sklearn.metrics import precision_score, recall_score, f1_score, jaccard_score
+from sklearn.metrics import precision_score, recall_score, f1_score, jaccard_score, accuracy_score
 import skimage
 import shutil
 
@@ -170,6 +170,7 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
     list_of_precisions = []
     list_of_recalls = []
     list_of_f1_scores = []
+    list_of_accuracies = []
     for file_name in complete_predicted_masks:
         print(f"File: {file_name}")
         complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
@@ -181,10 +182,11 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
             complete_predicted_mask_class_labels = turn_colors_to_class_labels_zones(complete_predicted_mask)
             complete_target_class_labels = turn_colors_to_class_labels_zones(complete_target)
             # Segmentation evaluation metrics
-            list_of_ious.append(multi_class_metric(jaccard_score, complete_predicted_mask_class_labels, complete_target_class_labels))
-            list_of_precisions.append(multi_class_metric(precision_score, complete_predicted_mask_class_labels, complete_target_class_labels))
-            list_of_recalls.append(multi_class_metric(recall_score, complete_predicted_mask_class_labels, complete_target_class_labels))
-            list_of_f1_scores.append(multi_class_metric(f1_score, complete_predicted_mask_class_labels, complete_target_class_labels))
+            list_of_ious.append(multi_class_metric(jaccard_score(zero_division=0), complete_predicted_mask_class_labels, complete_target_class_labels))
+            list_of_precisions.append(multi_class_metric(precision_score(zero_division=0), complete_predicted_mask_class_labels, complete_target_class_labels))
+            list_of_recalls.append(multi_class_metric(recall_score(zero_division=0), complete_predicted_mask_class_labels, complete_target_class_labels))
+            list_of_f1_scores.append(multi_class_metric(f1_score(zero_division=0), complete_predicted_mask_class_labels, complete_target_class_labels))
+            list_of_accuracies.append(multi_class_metric(accuracy_score, complete_predicted_mask_class_labels, complete_target_class_labels))
         else:
             # images need to be turned into a Tensor [0, ..., n_classes-1]
             complete_predicted_mask_class_labels = turn_colors_to_class_labels_front(complete_predicted_mask)
@@ -192,21 +194,24 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
             # Segmentation evaluation metrics
             flattened_complete_target_class_labels = np.ndarray.flatten(complete_target_class_labels)
             flattened_complete_predicted_mask_class_labels = np.ndarray.flatten(complete_predicted_mask_class_labels)
-            list_of_ious.append(jaccard_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-            list_of_precisions.append(precision_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-            list_of_recalls.append(recall_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
-            list_of_f1_scores.append(f1_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
+            list_of_ious.append(jaccard_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels, zero_division=0))
+            list_of_precisions.append(precision_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels, zero_division=0))
+            list_of_recalls.append(recall_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels, zero_division=0))
+            list_of_f1_scores.append(f1_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels, zero_division=0))
+            list_of_accuracies.append(accuracy_score(flattened_complete_target_class_labels, flattened_complete_predicted_mask_class_labels))
 
     if model.hparams.target_masks == "zones":
         print_zone_metrics("Precision", list_of_precisions)
         print_zone_metrics("Recall", list_of_recalls)
         print_zone_metrics("F1 Score", list_of_f1_scores)
         print_zone_metrics("IoU", list_of_ious)
+        print_zone_metrics("Accuracy", list_of_accuracies)
     else:
         print_front_metric("Precision", list_of_precisions)
         print_front_metric("Recall", list_of_recalls)
         print_front_metric("F1 Score", list_of_f1_scores)
         print_front_metric("IoU", list_of_ious)
+        print_front_metric("Accuracy", list_of_accuracies)
 
 
 def mask_prediction_with_bounding_box(post_complete_predicted_mask, file_name, bounding_boxes_directory):
