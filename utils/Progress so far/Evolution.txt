@@ -94,3 +94,11 @@ DistanceMapBCE -> Focal & Dice Loss
 MK 5 -----------------
 
 10) Coming back to single prediction on front but applying Focal&Dice Loss (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
+
+MK 6 -----------------
+
+11) Extended by MK5 but changing the model to train, validate and test (DeepLabV3+) (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
+
+MK 7 -----------------
+
+11) Baseline but changing the model to train, validate and test (DeepLabV3+)
