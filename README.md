@@ -154,63 +154,13 @@ All variants share the following setup and improvements compared to the original
 
 - EarlyStopping: not employed
 
-###  Step 3.1 - MK0 variant
+Here you can find all the metric results for each variant compared to the ones obtained in the baseline:
 
-All the common and previously described features are implemented, it is basically the prototype and very first version of a new approach to the Calving Front paper baseline.
+![](/utils/pics/Legends%20and%20Hyperparameters.png)
 
-You can find below the related results:
+![](/utils/pics/Validation%20performances.png)
 
-![](utils/pics/MK0.png)
-
-###  Step 3.2 - MK0.5 variant
-
-Minor extension of the previous variant, with the only difference on a preprocess and postprocess step:
-
-in fact, here the thickening of front line labels process is removed and, accordingly, also the postprocess related part. 
-
-You can find below the related results:
-
-![](utils/pics/MK0.5.png)
-
-###  Step 3.3 - MK1 variant
-
-Extension of previous variant with introduction of double prediction: on front and on near front lines (and related mask generation script).
-
-You can find below the related results:
-
-![](utils/pics/MK1.png)
-
-###  Step 3.4 - MK2 variant
-
-Extension of previous variant with the replacement of DistanceMapBCE loss function for near front segmentation with Focal loss function (parameters: alpha = 0.9 and gamma = 1.0)
-
-You can find below the related results:
-
-![](utils/pics/MK2.png)
-
-###  Step 3.5 - MK3 variant
-
-Extension of previous variant with the replacement of Focal loss function for near front segmentation with combination of Dice and Focal loss functions (parameters: alpha = 0.9, gamma = 1.0, near_loss_focal_weight = 0.5 and near_loss_dice_weight = 0.5)
-
-You can find below the related results:
-
-![](utils/pics/MK3.png)
-
-###  Step 3.6 - MK4 variant
-
-Extension of previous variant with the replacement of DistanceMapBCE loss function for front segmentation with combination of Dice and Focal loss functions (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
-
-You can find below the related results:
-
-![](utils/pics/MK4.png)
-
-###  Step 3.7 - MK5 variant
-
-Coming back to single prediction on front but applying Focal&Dice Loss (parameters: alpha = 0.9, gamma = 1.0, front_loss_focal_weight = 0.5 and front_loss_dice_weight = 0.5)
-
-You can find below the related results:
-
-![](utils/pics/MK5.png)
+![](/utils/pics/Test%20performances.png)
 
 
 
