@@ -175,8 +175,17 @@ def _strip_known_suffix(name: str, suffixes: Sequence[str]) -> str:
 
 
 def _iter_prediction_pairs(predictions_dir: Path) -> Iterator[tuple[str, Path]]:
+    """Iterate over prediction files and return their common base name."""
+
     suffixes = ("_front.png", "_front.tif", "_front.jpg")
-    for front_path in sorted(predictions_dir.glob("*_front.*")):
+    extensions = {".png", ".tif", ".tiff", ".jpg", ".jpeg"}
+
+    for front_path in sorted(predictions_dir.iterdir()):
+        if not front_path.is_file():
+            continue
+
+        if front_path.suffix.lower() not in extensions:
+            continue
         base = _strip_known_suffix(front_path.name, suffixes)
         yield base, front_path
 

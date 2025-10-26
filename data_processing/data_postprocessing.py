@@ -291,7 +291,15 @@ def extract_front_from_zones(zone_mask, front_length_threshold):
 
 def postprocess_front_segmenation(complete_predicted_mask, threshold_front_length):
     """
-    Post-process the front segmentation by skeletonization, filament extraction, and deletion of too short fronts
+    (old) Post-process the front segmentation by skeletonization, filament extraction, and deletion of too short fronts
+    
+    Post-process the front segmentation by skeletonization and deletion of too short fronts.
+
+    The previous implementation relied on the ``FilFinder2D`` package to prune the skeleton graph. This
+    occasionally stalled during ``analyze_skeletons`` for some predictions, which in turn blocked the whole
+    post-processing loop.  To keep the behaviour deterministic we prune the skeleton directly with
+    ``skimage`` by removing components shorter than the requested threshold.
+
     :param complete_predicted_mask: front segmentation prediction
     :param threshold_front_length: Threshold for deletion of too short front predictions
     :return: the post-processed front prediction
@@ -299,6 +307,7 @@ def postprocess_front_segmenation(complete_predicted_mask, threshold_front_lengt
     if len(np.unique(complete_predicted_mask)) == 1:
         print(f"No front predicted {np.unique(complete_predicted_mask)}")
         return complete_predicted_mask
+    """
     skeleton = skeletonize(complete_predicted_mask)
     fil = FilFinder2D(skeleton, distance=None, mask=skeleton)
     fil.preprocess_image(skip_flatten=True)
@@ -309,14 +318,30 @@ def postprocess_front_segmenation(complete_predicted_mask, threshold_front_lengt
     skeleton_longpaths = fil.skeleton_longpath
     # delete fronts that are too short
     labeled_skeleton_longpaths, num_cluster = skimage.measure.label(skeleton_longpaths, connectivity=2, return_num=True)
+    """
+
+    skeleton = skeletonize(complete_predicted_mask > 0).astype(np.uint8)
+    labeled_skeleton, num_cluster = skimage.measure.label(skeleton, connectivity=2, return_num=True)
+
     if num_cluster == 0:
-        return skeleton_longpaths
+        #return skeleton_longpaths
+        return skeleton
+    
+    post_processed = np.zeros_like(skeleton)
 
     for cluster_label in range(1, num_cluster + 1):  # +1 as range(x, y) is exclusive for y
-        cluster = labeled_skeleton_longpaths == cluster_label
+        #cluster = labeled_skeleton_longpaths == cluster_label
+        cluster = labeled_skeleton == cluster_label
         cluster_size = cluster.sum()
+        if cluster_size > threshold_front_length:
+            post_processed[cluster] = 1
+
+    return post_processed
+    """
         if cluster_size <= threshold_front_length:
             skeleton_longpaths[labeled_skeleton_longpaths == cluster_label] = 0
         else:
             skeleton_longpaths[labeled_skeleton_longpaths == cluster_label] = 1
     return skeleton_longpaths
+    """
+        
