@@ -126,11 +126,11 @@ class FrontUNet(UNet):
         parser.add_argument('--kernel_size', type=int, default=3)
 
         # Focal and Dice Loss arguments
-        parser.add_argument('--gamma', default=1.0, type=float, help="Gamma parameter for FocalLoss used for near segmentation")
-        parser.add_argument('--alpha', default=0.9, type=float, help="Alpha parameter for FocalLoss used for near segmentation")
+        parser.add_argument('--gamma', default=1.5, type=float, help="Gamma parameter for FocalLoss. gamma controls how much already correct (easy) predictions are suppressed")
+        parser.add_argument('--alpha', default=0.85, type=float, help="Alpha parameter for FocalLoss. alpha balances how much positive vs negative classes “count”")
 
-        parser.add_argument('--loss_focal_weight', default=0.5, type=float, help="Weight for FocalLoss component of near segmentation loss")
-        parser.add_argument('--loss_dice_weight', default=0.5, type=float, help="Weight for DiceLoss component of near segmentation loss")
+        parser.add_argument('--loss_focal_weight', default=0.3, type=float, help="Weight for FocalLoss component")
+        parser.add_argument('--loss_dice_weight', default=0.7, type=float, help="Weight for DiceLoss component")
 
         # Loss arguments
         """
