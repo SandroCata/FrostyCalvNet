@@ -51,13 +51,14 @@ class FrontUNet(UNet):
         self.w = hparams["w"]
         self.k = hparams["k"]
         self.relax = hparams["relax"]""
-        """
+        
         
         self.gamma = hparams["gamma"]
         self.alpha = hparams.get("alpha", None)
 
         self.loss_focal_weight = hparams.get("loss_focal_weight", 0.5)
         self.loss_dice_weight = hparams.get("loss_dice_weight", 0.5)
+        """
         self.dice = DiceLoss(mode="binary")
         
 
@@ -104,18 +105,19 @@ class FrontUNet(UNet):
         dmap_criterion = DistanceMapBCE(self.device, w=self.w, k=self.k, relax=self.relax)
         loss = dmap_criterion(y_hat[:, 0], y[:, 0])
         """
-        focal_criterion = FocalLoss('binary', gamma=self.gamma, alpha=self.alpha)
+        #focal_criterion = FocalLoss('binary', gamma=self.gamma, alpha=self.alpha)
         front_pred = y_hat[:, 0].contiguous()
         front_true = y[:, 0].contiguous()
-        loss_front_focal = focal_criterion(front_pred, front_true)
+        #loss_front_focal = focal_criterion(front_pred, front_true)
         
         loss_front_dice = self.dice(front_pred, front_true)
+        """
         loss = (
             self.loss_focal_weight * loss_front_focal
             + self.loss_dice_weight * loss_front_dice
         )
-        
-        return loss, self.class_wise_iou(y_hat, y)
+        """
+        return loss_front_dice, self.class_wise_iou(y_hat, y)
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -126,11 +128,13 @@ class FrontUNet(UNet):
         parser.add_argument('--kernel_size', type=int, default=3)
 
         # Focal and Dice Loss arguments
+        """
         parser.add_argument('--gamma', default=1.5, type=float, help="Gamma parameter for FocalLoss. gamma controls how much already correct (easy) predictions are suppressed")
         parser.add_argument('--alpha', default=0.85, type=float, help="Alpha parameter for FocalLoss. alpha balances how much positive vs negative classes “count”")
 
-        parser.add_argument('--loss_focal_weight', default=0.3, type=float, help="Weight for FocalLoss component")
-        parser.add_argument('--loss_dice_weight', default=0.7, type=float, help="Weight for DiceLoss component")
+        parser.add_argument('--loss_focal_weight', default=0.6, type=float, help="Weight for FocalLoss component")
+        parser.add_argument('--loss_dice_weight', default=0.4, type=float, help="Weight for DiceLoss component")
+        """
 
         # Loss arguments
         """
