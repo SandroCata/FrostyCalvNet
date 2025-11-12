@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from models.zones_segmentation_model import ZonesUNet
 from models.front_segmentation_model import FrontUNet
+from models.front_transunet_model import FrontTransUNet
 from data_processing.glacier_zones_data import GlacierZonesDataModule
 from data_processing.glacier_front_data import GlacierFrontDataModule
 from pytorch_lightning import Trainer, seed_everything
@@ -17,6 +18,8 @@ from callbacks import OneBasedModelCheckpoint, OneBasedProgressBar, LossHistory
 
 
 def main(hparams, run_number, running_mode, version_number):
+    model_type = getattr(hparams, "model_type", "unet")
+    input_size = (1, 256, 256)
     if hparams.target_masks == "zones":
         checkpoint_dir = os.path.join('checkpoints', 'zones_segmentation', 'run_' + str(run_number))
         tb_logs_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(run_number))
@@ -30,8 +33,12 @@ def main(hparams, run_number, running_mode, version_number):
         )
         clip_norm = 1.0
     else:
-        checkpoint_dir = os.path.join('checkpoints', 'fronts_segmentation', 'run_' + str(run_number))
-        tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(run_number))
+        if model_type == "transunet":
+            checkpoint_dir = os.path.join('checkpoints', 'fronts_segmentation', 'transunet', 'run_' + str(run_number))
+            tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'transunet', 'run_' + str(run_number))
+        else:
+            checkpoint_dir = os.path.join('checkpoints', 'fronts_segmentation', 'run_' + str(run_number))
+            tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(run_number))
         checkpoint_callback = OneBasedModelCheckpoint(
             dirpath=checkpoint_dir,
             filename='{epoch:02d}-{avg_train_loss:.2f}',
@@ -150,9 +157,13 @@ def main(hparams, run_number, running_mode, version_number):
                                             rotate=hparams.rotate,
                                             flip=hparams.flip,
                                             load_val=False) # Flase = skip validation, True otherwise
-        model = FrontUNet(vars(hparams))
+        if model_type == "transunet":
+            model = FrontTransUNet(vars(hparams))
+            input_size = (1, hparams.transunet_img_size, hparams.transunet_img_size)
+        else:
+            model = FrontUNet(vars(hparams))
 
-    summary(model.cuda(), (1, 256, 256))
+    summary(model.cuda(), input_size)
     print(model.eval())
 
     trainer.fit(model, datamodule=datamodule)
@@ -183,10 +194,15 @@ if __name__ == '__main__':
                                     "the second run will pick up training from the most recent 'epoch=...ckpt' file.")
     parent_parser.add_argument('--target_masks', default="fronts", help="Either 'fronts' or 'zones'. "
                                                                         "This decides which model will be trained.")
-
+    parent_parser.add_argument('--model_type', default='transunet', choices=['unet', 'transunet'],
+                               help="Backbone to use for front segmentation.")
+    
     tmp = parent_parser.parse_args()
     if tmp.target_masks == "fronts":
-        parser = FrontUNet.add_model_specific_args(parent_parser)
+        if tmp.model_type == 'transunet':
+            parser = FrontTransUNet.add_model_specific_args(parent_parser)
+        else:
+            parser = FrontUNet.add_model_specific_args(parent_parser)
     else:
         parser = ZonesUNet.add_model_specific_args(parent_parser)
     parser = Trainer.add_argparse_args(parser)

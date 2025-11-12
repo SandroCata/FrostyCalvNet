@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from models.zones_segmentation_model import ZonesUNet
 from models.front_segmentation_model import FrontUNet
+from models.front_transunet_model import FrontTransUNet
 from data_processing.glacier_zones_data import GlacierZonesDataModule
 from data_processing.glacier_front_data import GlacierFrontDataModule
 from data_processing.data_postprocessing import reconstruct_from_patches_and_binarize
@@ -12,6 +13,7 @@ from data_processing.data_postprocessing import (
 import os
 import pickle
 import torch
+import yaml
 import re
 import cv2
 import numpy as np
@@ -807,6 +809,8 @@ if __name__ == "__main__":
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
     parser.add_argument('--checkpoint_file', default="epoch=200-avg_train_loss=0.41.ckpt",
                         help="The name of the checkpoint file you want to load.")
+    parser.add_argument('--model_type', default='transunet', choices=['unet', 'transunet'],
+                        help="Backbone that was used to train the checkpoint.")
     parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")
     parser.add_argument('--data_parent_dir', default="../",
@@ -817,12 +821,32 @@ if __name__ == "__main__":
         "Please set --target_masks correctly. Either 'fronts' or 'zones'."
 
     if hparams.target_masks == "fronts":
-        assert os.path.isfile(os.path.join(src, "checkpoints", "fronts_segmentation", "run_" + str(hparams.run_number), hparams.checkpoint_file)), "Checkpoint file does not exist"
-        assert os.path.isfile(os.path.join(src, "tb_logs", "fronts_segmentation", "run_" + str(hparams.run_number), "log", "version_" + str(hparams.version_number), "hparams.yaml")), "hparams file does not exist"
+        if hparams.model_type == 'transunet':
+            checkpoint_base = os.path.join(src, "checkpoints", "fronts_segmentation", "transunet")
+            log_base = os.path.join(src, "tb_logs", "fronts_segmentation", "transunet")
+        else:
+            checkpoint_base = os.path.join(src, "checkpoints", "fronts_segmentation")
+            log_base = os.path.join(src, "tb_logs", "fronts_segmentation")
 
-        model = FrontUNet.load_from_checkpoint(
-            checkpoint_path=os.path.join(src, "checkpoints", "fronts_segmentation", "run_" + str(hparams.run_number), hparams.checkpoint_file),
-            hparams_file=os.path.join(src, "tb_logs", "fronts_segmentation", "run_" + str(hparams.run_number), "log", "version_" + str(hparams.version_number), "hparams.yaml"),
+        checkpoint_dir = os.path.join(checkpoint_base, "run_" + str(hparams.run_number))
+        log_dir = os.path.join(log_base, "run_" + str(hparams.run_number), "log", "version_" + str(hparams.version_number))
+        checkpoint_path = os.path.join(checkpoint_dir, hparams.checkpoint_file)
+        hparams_path = os.path.join(log_dir, "hparams.yaml")
+
+        assert os.path.isfile(checkpoint_path), "Checkpoint file does not exist"
+        assert os.path.isfile(hparams_path), "hparams file does not exist"
+
+        with open(hparams_path) as f:
+            saved_hparams = yaml.safe_load(f)
+        saved_model_type = saved_hparams.get('model_type', 'unet')
+        if saved_model_type != hparams.model_type:
+            print(f"Warning: Overriding provided model_type '{hparams.model_type}' with '{saved_model_type}' from checkpoint hparams.")
+            hparams.model_type = saved_model_type
+        model_cls = FrontTransUNet if hparams.model_type == 'transunet' else FrontUNet
+
+        model = model_cls.load_from_checkpoint(
+            checkpoint_path=checkpoint_path,
+            hparams_file=hparams_path,
             map_location=None
         )
         datamodule = GlacierFrontDataModule(batch_size=model.hparams.batch_size, augmentation=False, parent_dir=hparams.data_parent_dir, bright=0, wrap=0, noise=0, rotate=0, flip=0)
@@ -842,18 +866,22 @@ if __name__ == "__main__":
     else:
         result_directory_name = "validation_results"
 
-    patch_directory = os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number), "patches")
-    complete_directory = os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number), "complete_images")
-    complete_postprocessed_directory = os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number), "complete_postprocessed_images")
-    visualizations_dir = os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number), "visualizations")
+    result_root = os.path.join(src, result_directory_name, hparams.target_masks)
+    if hparams.target_masks == "fronts" and hparams.model_type == 'transunet':
+        result_root = os.path.join(result_root, 'transunet')
+
+    patch_directory = os.path.join(result_root, "run_" + str(hparams.run_number), "patches")
+    complete_directory = os.path.join(result_root, "run_" + str(hparams.run_number), "complete_images")
+    complete_postprocessed_directory = os.path.join(result_root, "run_" + str(hparams.run_number), "complete_postprocessed_images")
+    visualizations_dir = os.path.join(result_root, "run_" + str(hparams.run_number), "visualizations")
     data_raw_dir = os.path.join(hparams.data_raw_parent_dir, "data_raw")
 
     if not os.path.exists(os.path.join(src, result_directory_name)):
         os.makedirs(os.path.join(src, result_directory_name))
-    if not os.path.exists(os.path.join(src, result_directory_name, hparams.target_masks)):
-        os.makedirs(os.path.join(src, result_directory_name, hparams.target_masks))
-    if not os.path.exists(os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number))):
-        os.makedirs(os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number)))
+    if not os.path.exists(result_root):
+        os.makedirs(result_root)
+    if not os.path.exists(os.path.join(result_root, "run_" + str(hparams.run_number))):
+        os.makedirs(os.path.join(result_root, "run_" + str(hparams.run_number)))
     if not os.path.exists(patch_directory):
         os.makedirs(patch_directory)
     if not os.path.exists(complete_directory):
@@ -863,8 +891,8 @@ if __name__ == "__main__":
     if not os.path.exists(visualizations_dir):
         os.makedirs(visualizations_dir)
 
-    log_file_path = os.path.join(src, result_directory_name, hparams.target_masks,
-                                 "run_" + str(hparams.run_number), "log.txt")
+    
+    log_file_path = os.path.join(result_root, "run_" + str(hparams.run_number), "log.txt")
     log_file = open(log_file_path, "w")
     original_print = builtins.print
 
