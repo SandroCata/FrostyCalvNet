@@ -117,6 +117,7 @@ class ResNetV2(nn.Module):
         super().__init__()
         width = int(64 * width_factor)
         self.width = width
+        self._features = None
 
         self.root = nn.Sequential(OrderedDict([
             ('conv', StdConv2d(3, width, kernel_size=7, stride=2, bias=False, padding=3)),
@@ -158,4 +159,8 @@ class ResNetV2(nn.Module):
                 feat = x
             features.append(feat)
         x = self.body[-1](x)
-        return x, features[::-1]
+        self._features = tuple(features[::-1])
+        return x
+
+    def get_features(self):
+        return self._features

@@ -82,7 +82,7 @@ class Attention(nn.Module):
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         attention_probs = self.softmax(attention_scores)
-        weights = attention_probs if self.vis else None
+        weights = attention_probs if self.vis else attention_probs.new_empty(0)
         attention_probs = self.attn_dropout(attention_probs)
 
         context_layer = torch.matmul(attention_probs, value_layer)
@@ -154,7 +154,9 @@ class Embeddings(nn.Module):
 
     def forward(self, x):
         if self.hybrid:
-            x, features = self.hybrid_model(x)
+            x = self.hybrid_model(x)
+            hybrid_features = self.hybrid_model.get_features()
+            features = list(hybrid_features) if hybrid_features is not None else None
         else:
             features = None
         x = self.patch_embeddings(x)  # (B, hidden. n_patches^(1/2), n_patches^(1/2))
@@ -174,22 +176,31 @@ class Block(nn.Module):
     def __init__(self, config, vis):
         super(Block, self).__init__()
         self.hidden_size = config.hidden_size
+        self.vis = vis
         self.attention_norm = LayerNorm(config.hidden_size, eps=1e-6)
         self.ffn_norm = LayerNorm(config.hidden_size, eps=1e-6)
         self.ffn = Mlp(config)
         self.attn = Attention(config, vis)
+        self._last_attn_weights = None
 
     def forward(self, x):
         h = x
         x = self.attention_norm(x)
-        x, weights = self.attn(x)
-        x = x + h
+        attn_output, weights = self.attn(x)
+        if self.vis:
+            self._last_attn_weights = weights
+        else:
+            self._last_attn_weights = attn_output.new_empty((0,))
+        x = attn_output + h
 
         h = x
         x = self.ffn_norm(x)
         x = self.ffn(x)
         x = x + h
-        return x, weights
+        return x
+
+    def get_attention_map(self):
+        return self._last_attn_weights
 
     def load_from(self, weights, n_block):
         ROOT = f"Transformer/encoderblock_{n_block}"
@@ -235,6 +246,7 @@ class Encoder(nn.Module):
         self.vis = vis
         self.layer = nn.ModuleList()
         self.encoder_norm = LayerNorm(config.hidden_size, eps=1e-6)
+        self._last_attn_weights = None
         for _ in range(config.transformer["num_layers"]):
             layer = Block(config, vis)
             self.layer.append(copy.deepcopy(layer))
@@ -242,11 +254,19 @@ class Encoder(nn.Module):
     def forward(self, hidden_states):
         attn_weights = []
         for layer_block in self.layer:
-            hidden_states, weights = layer_block(hidden_states)
+            hidden_states = layer_block(hidden_states)
             if self.vis:
-                attn_weights.append(weights)
+                attn_weights.append(layer_block.get_attention_map())
         encoded = self.encoder_norm(hidden_states)
-        return encoded, attn_weights
+        if self.vis:
+            attn_weights = torch.stack(attn_weights)
+        else:
+            attn_weights = encoded.new_empty((0,))
+        self._last_attn_weights = attn_weights
+        return encoded
+
+    def get_attention_map(self):
+        return self._last_attn_weights
 
 
 class Transformer(nn.Module):
@@ -257,9 +277,15 @@ class Transformer(nn.Module):
 
     def forward(self, input_ids):
         embedding_output = self.embeddings(input_ids)
-        features = self.embeddings.get_features()
-        encoded, attn_weights = self.encoder(embedding_output)  # (B, n_patch, hidden)
-        return encoded, attn_weights, features
+        
+        encoded = self.encoder(embedding_output)  # (B, n_patch, hidden)
+        return encoded
+
+    def get_features(self):
+        return self.embeddings.get_features()
+
+    def get_attention_map(self):
+        return self.encoder.get_attention_map()
 
 
 class Conv2dReLU(nn.Sequential):
@@ -387,14 +413,20 @@ class VisionTransformer(nn.Module):
             kernel_size=3,
         )
         self.config = config
+        self._last_attn_weights = None
 
     def forward(self, x):
         if x.size()[1] == 1:
             x = x.repeat(1,3,1,1)
-        x, attn_weights, features = self.transformer(x)  # (B, n_patch, hidden)
+        x = self.transformer(x)  # (B, n_patch, hidden)
+        features = self.transformer.get_features()
+        self._last_attn_weights = self.transformer.get_attention_map()
         x = self.decoder(x, features)
         logits = self.segmentation_head(x)
         return logits
+    
+    def get_attention_map(self):
+        return self._last_attn_weights
 
     def load_from(self, weights):
         with torch.no_grad():
