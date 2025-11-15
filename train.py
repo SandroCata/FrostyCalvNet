@@ -8,6 +8,13 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import TensorBoardLogger
 import sys
 from torchsummary import summary
+try:
+    from pytorch_lightning.utilities.model_summary import ModelSummary
+except ImportError:  # pragma: no cover - compatibility path for older Lightning versions
+    try:
+        from pytorch_lightning.core.memory import ModelSummary
+    except ImportError:  # pragma: no cover - Lightning without ModelSummary
+        ModelSummary = None
 import time
 import torch
 import os
@@ -163,8 +170,35 @@ def main(hparams, run_number, running_mode, version_number):
         else:
             model = FrontUNet(vars(hparams))
 
-    summary(model.cuda(), input_size)
-    print(model.eval())
+    model = model.cuda()
+    try:
+        summary(model, input_size)
+    except Exception as exc:
+        print(f"torchsummary failed to generate the model summary: {exc}.")
+        if ModelSummary is not None:
+            print("Falling back to PyTorch Lightning's ModelSummary output.")
+            summary_obj = None
+            try:
+                summary_obj = ModelSummary(model, max_depth=-1)
+            except TypeError:
+                try:
+                    summary_obj = ModelSummary(model, mode="full")
+                except TypeError:
+                    try:
+                        summary_obj = ModelSummary(model)
+                    except TypeError as type_err:
+                        print("Unable to create a ModelSummary due to signature mismatch:"
+                              f" {type_err}.")
+            if summary_obj is not None:
+                print(summary_obj)
+            else:
+                print("ModelSummary is available but instantiation failed.\n"
+                      "Model representation is shown instead.")
+                print(model)
+        else:
+            print("PyTorch Lightning does not provide ModelSummary in this version.\n"
+                  "Model representation is shown instead.")
+            print(model)
 
     trainer.fit(model, datamodule=datamodule)
 
@@ -180,7 +214,7 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=2, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=36, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "
