@@ -1,15 +1,23 @@
 from argparse import ArgumentParser
 from models.zones_segmentation_model import ZonesUNet
 from models.front_segmentation_model import FrontUNet
+from models.front_transunet_model import FrontTransUNet
 from data_processing.glacier_zones_data import GlacierZonesDataModule
 from data_processing.glacier_front_data import GlacierFrontDataModule
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import TensorBoardLogger
 import sys
 from torchsummary import summary
-import time
+try:
+    from pytorch_lightning.utilities.model_summary import ModelSummary
+except ImportError:  # pragma: no cover - compatibility path for older Lightning versions
+    try:
+        from pytorch_lightning.core.memory import ModelSummary
+    except ImportError:  # pragma: no cover - Lightning without ModelSummary
+        ModelSummary = None
 import torch
 import os
+import time
 from pytorch_lightning.callbacks import LearningRateMonitor
 #from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import builtins
@@ -17,6 +25,8 @@ from callbacks import OneBasedModelCheckpoint, OneBasedProgressBar, LossHistory
 
 
 def main(hparams, run_number, running_mode, version_number):
+    model_type = getattr(hparams, "model_type", "unet")
+    input_size = (1, 256, 256)
     if hparams.target_masks == "zones":
         checkpoint_dir = os.path.join('checkpoints', 'zones_segmentation', 'run_' + str(run_number))
         tb_logs_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(run_number))
@@ -30,8 +40,12 @@ def main(hparams, run_number, running_mode, version_number):
         )
         clip_norm = 1.0
     else:
-        checkpoint_dir = os.path.join('checkpoints', 'fronts_segmentation', 'run_' + str(run_number))
-        tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(run_number))
+        if model_type == "transunet":
+            checkpoint_dir = os.path.join('checkpoints', 'fronts_segmentation', 'transunet', 'run_' + str(run_number))
+            tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'transunet', 'run_' + str(run_number))
+        else:
+            checkpoint_dir = os.path.join('checkpoints', 'fronts_segmentation', 'run_' + str(run_number))
+            tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(run_number))
         checkpoint_callback = OneBasedModelCheckpoint(
             dirpath=checkpoint_dir,
             filename='{epoch:02d}-{avg_train_loss:.2f}',
@@ -150,10 +164,41 @@ def main(hparams, run_number, running_mode, version_number):
                                             rotate=hparams.rotate,
                                             flip=hparams.flip,
                                             load_val=False) # Flase = skip validation, True otherwise
-        model = FrontUNet(vars(hparams))
+        if model_type == "transunet":
+            model = FrontTransUNet(vars(hparams))
+            input_size = (1, hparams.transunet_img_size, hparams.transunet_img_size)
+        else:
+            model = FrontUNet(vars(hparams))
 
-    summary(model.cuda(), (1, 256, 256))
-    print(model.eval())
+    model = model.cuda()
+    try:
+        summary(model, input_size)
+    except Exception as exc:
+        print(f"torchsummary failed to generate the model summary: {exc}.")
+        if ModelSummary is not None:
+            print("Falling back to PyTorch Lightning's ModelSummary output.")
+            summary_obj = None
+            try:
+                summary_obj = ModelSummary(model, max_depth=-1)
+            except TypeError:
+                try:
+                    summary_obj = ModelSummary(model, mode="full")
+                except TypeError:
+                    try:
+                        summary_obj = ModelSummary(model)
+                    except TypeError as type_err:
+                        print("Unable to create a ModelSummary due to signature mismatch:"
+                              f" {type_err}.")
+            if summary_obj is not None:
+                print(summary_obj)
+            else:
+                print("ModelSummary is available but instantiation failed.\n"
+                      "Model representation is shown instead.")
+                print(model)
+        else:
+            print("PyTorch Lightning does not provide ModelSummary in this version.\n"
+                  "Model representation is shown instead.")
+            print(model)
 
     trainer.fit(model, datamodule=datamodule)
 
@@ -169,7 +214,7 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=50, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=5, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "
@@ -183,19 +228,30 @@ if __name__ == '__main__':
                                     "the second run will pick up training from the most recent 'epoch=...ckpt' file.")
     parent_parser.add_argument('--target_masks', default="fronts", help="Either 'fronts' or 'zones'. "
                                                                         "This decides which model will be trained.")
+    parent_parser.add_argument('--model_type', default='transunet', choices=['unet', 'transunet'],
+                               help="Backbone to use for front segmentation.")
 
     tmp = parent_parser.parse_args()
     if tmp.target_masks == "fronts":
-        parser = FrontUNet.add_model_specific_args(parent_parser)
+        if tmp.model_type == 'transunet':
+            parser = FrontTransUNet.add_model_specific_args(parent_parser)
+        else:
+            parser = FrontUNet.add_model_specific_args(parent_parser)
     else:
         parser = ZonesUNet.add_model_specific_args(parent_parser)
     parser = Trainer.add_argparse_args(parser)
     hparams = parser.parse_args()
 
     if hparams.target_masks == "zones":
-        base_log_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(hparams.run_number), 'log')
+        log_segments = ['tb_logs', 'zones_segmentation']
     else:
-        base_log_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(hparams.run_number), 'log')
+        model_type = getattr(hparams, "model_type", "unet")
+        if model_type == "transunet":
+            log_segments = ['tb_logs', 'fronts_segmentation', 'transunet']
+        else:
+            log_segments = ['tb_logs', 'fronts_segmentation']
+
+    base_log_dir = os.path.join(*log_segments, f'run_{hparams.run_number}', 'log')
 
     os.makedirs(base_log_dir, exist_ok=True)
     existing_versions = [d for d in os.listdir(base_log_dir) if d.startswith('version_')]
