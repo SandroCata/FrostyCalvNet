@@ -214,7 +214,7 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=36, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=5, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
                                                                        "be stored in temporary.ckpt."
                                                                        "Train.py will resume training from a "
@@ -243,9 +243,15 @@ if __name__ == '__main__':
     hparams = parser.parse_args()
 
     if hparams.target_masks == "zones":
-        base_log_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(hparams.run_number), 'log')
+        log_segments = ['tb_logs', 'zones_segmentation']
     else:
-        base_log_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(hparams.run_number), 'log')
+        model_type = getattr(hparams, "model_type", "unet")
+        if model_type == "transunet":
+            log_segments = ['tb_logs', 'fronts_segmentation', 'transunet']
+        else:
+            log_segments = ['tb_logs', 'fronts_segmentation']
+
+    base_log_dir = os.path.join(*log_segments, f'run_{hparams.run_number}', 'log')
 
     os.makedirs(base_log_dir, exist_ok=True)
     existing_versions = [d for d in os.listdir(base_log_dir) if d.startswith('version_')]
