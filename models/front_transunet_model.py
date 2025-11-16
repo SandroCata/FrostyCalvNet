@@ -16,7 +16,7 @@ class FrontTransUNet(FrontUNet):
     """Lightning module wrapping the TransUNet backbone for front segmentation."""
 
     def __init__(self, hparams):
-        self.transunet_variant = hparams.get("transunet_variant", "R50-ViT-B_16")
+        self.transunet_variant = hparams.get("transunet_variant", "mk11-small")
         self.transunet_img_size = hparams.get("transunet_img_size", 256)
         self.transunet_pretrained = hparams.get("transunet_pretrained", "")
         self.transunet_n_skip = hparams.get("transunet_n_skip", None)
@@ -68,7 +68,7 @@ class FrontTransUNet(FrontUNet):
         group = parser.add_argument_group("TransUNet")
         group.add_argument(
             "--transunet_variant",
-            default="R50-ViT-B_16",
+            default="mk11-small",
             choices=sorted(CONFIGS.keys()),
             help="Backbone variant to use.",
         )
