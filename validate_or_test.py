@@ -803,11 +803,11 @@ if __name__ == "__main__":
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"
                              "(checkpoints/..._segmentation/run_?).")
-    parser.add_argument('--version_number', default=5,
+    parser.add_argument('--version_number', default=2,
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="epoch=95-avg_train_loss=0.80.ckpt",
+    parser.add_argument('--checkpoint_file', default="epoch=200-avg_train_loss=0.78.ckpt",
                         help="The name of the checkpoint file you want to load.")
     parser.add_argument('--model_type', default='transunet', choices=['unet', 'transunet'],
                         help="Backbone that was used to train the checkpoint.")

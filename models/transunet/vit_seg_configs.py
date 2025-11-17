@@ -150,3 +150,16 @@ def get_h14_config():
     config.representation_size = None
 
     return config
+
+def get_mk10_small_config():
+    """Custom lightweight ResNet50 + ViT configuration used for MK10-small."""
+
+    config = get_r50_b16_config()
+    config.hidden_size = 512
+    config.transformer.mlp_dim = 2048
+    config.transformer.num_heads = 8
+    config.transformer.num_layers = 6
+    # Disable pretrained checkpoints by default for this experimental variant.
+    config.pretrained_path = None
+    config.resnet_pretrained_path = None
+    return config
