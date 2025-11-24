@@ -29,10 +29,18 @@ def _prompt_plot_type() -> str:
 def _prompt_title() -> str:
     """Prompt the user for the chart title."""
     while True:
-        title = input("Inserisci il titolo del grafico (metrica di interesse): ").strip()
+        title = input("Inserisci il titolo del grafico: ").strip()
         if title:
             return title
         print("Il titolo non può essere vuoto.")
+
+def _prompt_ylabel() -> str:
+    """Prompt the user for the chart ylabel."""
+    while True:
+        ylabel = input("Inserisci il titolo delle ordinate (metrica di interesse): ").strip()
+        if ylabel:
+            return ylabel
+        print("La descrizione delle ordinate non può essere vuota.")
 
 
 def _prompt_variants() -> List[str]:
@@ -71,43 +79,44 @@ def _prompt_output_path(default_name: str = "grafico.png") -> Path:
     return Path(raw_path) if raw_path else Path(default_name)
 
 
-def _plot_trend(variants: List[str], values: List[float], title: str, output_path: Path) -> None:
+def _plot_trend(ylabel: str, variants: List[str], values: List[float], title: str, output_path: Path) -> None:
     plt.figure(figsize=(10, 6))
     plt.plot(range(len(variants)), values, marker="o", linestyle="-", color="#1f77b4")
     plt.xticks(ticks=range(len(variants)), labels=variants, rotation=45, ha="right")
     plt.xlabel("Varianti")
-    plt.ylabel(title)
+    plt.ylabel(ylabel)
     plt.title(title)
     plt.grid(True, linestyle="--", alpha=0.4)
     plt.tight_layout()
     plt.savefig(output_path)
-    print(f"Grafico di tendenza salvato in: {output_path.resolve()}")
+    print(f"Grafico di tendenza salvato in: {output_path}")
 
 
-def _plot_histogram(variants: List[str], values: List[float], title: str, output_path: Path) -> None:
+def _plot_histogram(ylabel: str, variants: List[str], values: List[float], title: str, output_path: Path) -> None:
     plt.figure(figsize=(10, 6))
     plt.bar(variants, values, color="#ff7f0e")
     plt.xlabel("Varianti")
-    plt.ylabel(title)
+    plt.ylabel(ylabel)
     plt.title(title)
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
     plt.savefig(output_path)
-    print(f"Istogramma salvato in: {output_path.resolve()}")
+    print(f"Istogramma salvato in: {output_path}")
 
 
 def main() -> None:
     print("Generatore di grafici (trend o istogramma)")
     plot_type = _prompt_plot_type()
     title = _prompt_title()
+    ylabel = _prompt_ylabel()
     variants = _prompt_variants()
     values = _prompt_values(len(variants))
     output_path = _prompt_output_path()
 
     if plot_type == "trend":
-        _plot_trend(variants, values, title, output_path)
+        _plot_trend(ylabel, variants, values, title, output_path)
     else:
-        _plot_histogram(variants, values, title, output_path)
+        _plot_histogram(ylabel, variants, values, title, output_path)
 
 
 if __name__ == "__main__":

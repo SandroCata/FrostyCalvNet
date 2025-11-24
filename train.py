@@ -13,6 +13,7 @@ import torch
 import os
 from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from logging_utils import tee_stdout_stderr
 
 def _get_latest_checkpoint(checkpoint_dir):
     """Return the most recent checkpoint in ``checkpoint_dir``.
@@ -61,7 +62,7 @@ def main(hparams, run_number, running_mode):
                                               dirpath=checkpoint_dir,
                                               filename='-{epoch:02d}-{avg_metric_validation:.2f}',
                                               mode='max',  # Here: the higher the IoU the better
-                                              save_top_k=1)
+                                              save_top_k=-1)
         early_stop_callback = EarlyStopping(monitor="avg_metric_validation", patience=30,
                                             verbose=False, mode="max", check_finite=True)
         clip_norm = 1.0
@@ -72,7 +73,7 @@ def main(hparams, run_number, running_mode):
                                               dirpath=checkpoint_dir,
                                               filename='-{epoch:02d}-{avg_loss_validation:.2f}',
                                               mode='min',  # Here: the lower the loss the better
-                                              save_top_k=1)
+                                              save_top_k=-1)
         early_stop_callback = EarlyStopping(monitor="avg_loss_validation", patience=30,
                                             verbose=False, mode="min", check_finite=True)
         clip_norm = 1.0
@@ -179,7 +180,7 @@ if __name__ == '__main__':
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
     parent_parser.add_argument(
-        '--epochs', type=int, default=55,
+        '--epochs', type=int, default=14,
         help="The number of epochs the model shall be trained."
              "The weights after the last training epoch will "
              "be stored in temporary.ckpt."
@@ -210,10 +211,16 @@ if __name__ == '__main__':
     assert hparams.training_mode == "training" or hparams.training_mode == "debugging" or hparams.training_mode == "batch_overfit", \
         "Please set --training_mode correctly. Either 'training' or 'debugging' or 'batch_overfit'."
 
-    start_save = time.time()
-    main(hparams, hparams.run_number, hparams.training_mode)
-    end_save = time.time()
-    print(f"Total time for training: {end_save - start_save}")
+    if hparams.target_masks == "zones":
+        log_dir = os.path.join('checkpoints', 'zones_segmentation', 'run_' + str(hparams.run_number))
+    else:
+        log_dir = os.path.join('checkpoints', 'fronts_segmentation', 'run_' + str(hparams.run_number))
+
+    with tee_stdout_stderr(os.path.join(log_dir, "log.txt")):
+        start_save = time.time()
+        main(hparams, hparams.run_number, hparams.training_mode)
+        end_save = time.time()
+        print(f"Total time for training: {end_save - start_save}")
 
     # run the following if you want to open tensorboard
     # tensorboard --logdir tb_logs

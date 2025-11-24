@@ -15,6 +15,7 @@ from scipy.spatial import distance
 from sklearn.metrics import precision_score, recall_score, f1_score, jaccard_score
 import skimage
 import shutil
+from logging_utils import tee_stdout_stderr
 
 
 def front_error(prediction, label):
@@ -623,11 +624,11 @@ if __name__ == "__main__":
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"
                              "(checkpoints/..._segmentation/run_?).")
-    parser.add_argument('--version_number', default=1,
+    parser.add_argument('--version_number', default=2,
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="temporary.ckpt",
+    parser.add_argument('--checkpoint_file', default="-epoch=185-avg_loss_validation=0.57.ckpt",
                         help="The name of the checkpoint file you want to load.")
     parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")
@@ -685,4 +686,7 @@ if __name__ == "__main__":
     if not os.path.exists(visualizations_dir):
         os.makedirs(visualizations_dir)
 
-    main(hparams.mode, model, datamodule, patch_directory, complete_directory, complete_postprocessed_directory, visualizations_dir, data_raw_dir)
+    log_path = os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number), "log.txt")
+
+    with tee_stdout_stderr(log_path):
+        main(hparams.mode, model, datamodule, patch_directory, complete_directory, complete_postprocessed_directory, visualizations_dir, data_raw_dir)
