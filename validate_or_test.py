@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, BooleanOptionalAction
 from models.zones_segmentation_model import ZonesUNet
 from models.front_segmentation_model import FrontUNet
 from data_processing.glacier_zones_data import GlacierZonesDataModule
@@ -10,6 +10,7 @@ from data_processing.data_postprocessing import (
     extract_front_from_zones,
 )
 import os
+import tempfile
 import pickle
 import torch
 import re
@@ -708,7 +709,7 @@ def visualizations(complete_postprocessed_directory,
         cv2.imwrite(os.path.join(visualizations_dir, file_name), sar_image_rgb)
 
 
-def main(mode, model, datamodule, patch_directory, complete_directory, complete_postprocessed_directory, visualizations_dir, data_raw_dir):
+def main(mode, model, datamodule, patch_directory, complete_directory, complete_postprocessed_directory, visualizations_dir, data_raw_dir, save_visualizations=True):
     """
     Performance evaluation on the either the test or validation dataset.
     :param mode: Either "test" or "validate" -> on which dataset the performance of the model shall be tested
@@ -780,15 +781,16 @@ def main(mode, model, datamodule, patch_directory, complete_directory, complete_
     # ###############################################################################################
     # MAKE VISUALIZATIONS
     # ###############################################################################################
-    if mode == "test":
-        directory_of_sar_images = os.path.join(data_raw_dir, "sar_images", 'test')
-    else:
-        directory_of_sar_images = os.path.join(data_raw_dir, "sar_images", 'train')
-    visualizations(complete_postprocessed_directory,
-                   directory_of_target_fronts,
-                   directory_of_sar_images,
-                   bounding_boxes_directory,
-                   visualizations_dir)
+    if save_visualizations:
+        if mode == "test":
+            directory_of_sar_images = os.path.join(data_raw_dir, "sar_images", 'test')
+        else:
+            directory_of_sar_images = os.path.join(data_raw_dir, "sar_images", 'train')
+        visualizations(complete_postprocessed_directory,
+                       directory_of_target_fronts,
+                       directory_of_sar_images,
+                       bounding_boxes_directory,
+                       visualizations_dir)
 
 
 if __name__ == "__main__":
@@ -805,8 +807,14 @@ if __name__ == "__main__":
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="epoch=01-avg_train_loss=0.61.ckpt",
+    parser.add_argument('--checkpoint_file', default="epoch=200-avg_train_loss=0.52.ckpt",
                         help="The name of the checkpoint file you want to load.")
+    parser.add_argument('--save_complete_predictions', action=BooleanOptionalAction, default=False,
+                        help="Whether to keep the reconstructed complete predictions on disk.")
+    parser.add_argument('--save_postprocessed_predictions', action=BooleanOptionalAction, default=False,
+                        help="Whether to keep the post-processed complete predictions on disk.")
+    parser.add_argument('--save_visualizations', action=BooleanOptionalAction, default=False,
+                        help="Whether to generate and keep visualizations on disk.")
     parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")
     parser.add_argument('--data_parent_dir', default="../",
@@ -856,12 +864,29 @@ if __name__ == "__main__":
         os.makedirs(os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number)))
     if not os.path.exists(patch_directory):
         os.makedirs(patch_directory)
-    if not os.path.exists(complete_directory):
-        os.makedirs(complete_directory)
-    if not os.path.exists(complete_postprocessed_directory):
-        os.makedirs(complete_postprocessed_directory)
-    if not os.path.exists(visualizations_dir):
-        os.makedirs(visualizations_dir)
+    
+    temp_dirs_to_cleanup = []
+
+    if hparams.save_complete_predictions:
+        if not os.path.exists(complete_directory):
+            os.makedirs(complete_directory)
+    else:
+        temp_complete_dir = tempfile.TemporaryDirectory()
+        temp_dirs_to_cleanup.append(temp_complete_dir)
+        complete_directory = temp_complete_dir.name
+
+    if hparams.save_postprocessed_predictions:
+        if not os.path.exists(complete_postprocessed_directory):
+            os.makedirs(complete_postprocessed_directory)
+    else:
+        temp_complete_postprocessed_dir = tempfile.TemporaryDirectory()
+        temp_dirs_to_cleanup.append(temp_complete_postprocessed_dir)
+        complete_postprocessed_directory = temp_complete_postprocessed_dir.name
+
+    if hparams.save_visualizations:
+        if not os.path.exists(visualizations_dir):
+            os.makedirs(visualizations_dir)
+
 
     log_file_path = os.path.join(src, result_directory_name, hparams.target_masks,
                                  "run_" + str(hparams.run_number), "log.txt")
@@ -877,7 +902,9 @@ if __name__ == "__main__":
 
     try:
         main(hparams.mode, model, datamodule, patch_directory, complete_directory,
-             complete_postprocessed_directory, visualizations_dir, data_raw_dir)
+             complete_postprocessed_directory, visualizations_dir, data_raw_dir, hparams.save_visualizations)
     finally:
+        for temp_dir in temp_dirs_to_cleanup:
+            temp_dir.cleanup()
         builtins.print = original_print
         log_file.close()

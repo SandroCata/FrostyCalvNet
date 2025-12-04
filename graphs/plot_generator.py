@@ -83,7 +83,7 @@ def _plot_trend(ylabel: str, variants: List[str], values: List[float], title: st
     plt.figure(figsize=(10, 6))
     plt.plot(range(len(variants)), values, marker="o", linestyle="-", color="#1f77b4")
     plt.xticks(ticks=range(len(variants)), labels=variants, rotation=45, ha="right")
-    plt.xlabel("Varianti")
+    plt.xlabel("Epochs") #change into Variants when needed
     plt.ylabel(ylabel)
     plt.title(title)
     plt.grid(True, linestyle="--", alpha=0.4)
@@ -95,7 +95,7 @@ def _plot_trend(ylabel: str, variants: List[str], values: List[float], title: st
 def _plot_histogram(ylabel: str, variants: List[str], values: List[float], title: str, output_path: Path) -> None:
     plt.figure(figsize=(10, 6))
     plt.bar(variants, values, color="#ff7f0e")
-    plt.xlabel("Varianti")
+    plt.xlabel("Epochs") #change into Variants when needed
     plt.ylabel(ylabel)
     plt.title(title)
     plt.xticks(rotation=45, ha="right")
