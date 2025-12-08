@@ -803,17 +803,17 @@ if __name__ == "__main__":
                         help="The model's run number of the checkpoint file you want to load. "
                              "You can check the run number in the folder structure of the checkpoint"
                              "(checkpoints/..._segmentation/run_?).")
-    parser.add_argument('--version_number', default=1,
+    parser.add_argument('--version_number', default=2,
                         help="The version number of the hparams file you want to load. "
                              "You can check the version number in the folder structure of the hparams file "
                              "(tb_logs/..._segmentation/run_.../log/version_?).")
-    parser.add_argument('--checkpoint_file', default="epoch=200-avg_train_loss=0.52.ckpt",
+    parser.add_argument('--checkpoint_file', default="epoch=230-avg_train_loss=0.34.ckpt",
                         help="The name of the checkpoint file you want to load.")
-    parser.add_argument('--save_complete_predictions', action=BooleanOptionalAction, default=False,
+    parser.add_argument('--save_complete_predictions', action=BooleanOptionalAction, default=True,
                         help="Whether to keep the reconstructed complete predictions on disk.")
-    parser.add_argument('--save_postprocessed_predictions', action=BooleanOptionalAction, default=False,
+    parser.add_argument('--save_postprocessed_predictions', action=BooleanOptionalAction, default=True,
                         help="Whether to keep the post-processed complete predictions on disk.")
-    parser.add_argument('--save_visualizations', action=BooleanOptionalAction, default=False,
+    parser.add_argument('--save_visualizations', action=BooleanOptionalAction, default=True,
                         help="Whether to generate and keep visualizations on disk.")
     parser.add_argument('--data_raw_parent_dir', default="../",
                         help="Where the data_raw directory lies, default: .")
@@ -850,10 +850,14 @@ if __name__ == "__main__":
     else:
         result_directory_name = "validation_results"
 
-    patch_directory = os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number), "patches")
-    complete_directory = os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number), "complete_images")
-    complete_postprocessed_directory = os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number), "complete_postprocessed_images")
-    visualizations_dir = os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number), "visualizations")
+    checkpoint_directory_name = re.sub(r"[^A-Za-z0-9._-]", "_", os.path.splitext(os.path.basename(hparams.checkpoint_file))[0])
+    run_directory = os.path.join(src, result_directory_name, hparams.target_masks, "run_" + str(hparams.run_number))
+    output_directory = os.path.join(run_directory, checkpoint_directory_name)
+
+    patch_directory = os.path.join(output_directory, "patches")
+    complete_directory = os.path.join(output_directory, "complete_images")
+    complete_postprocessed_directory = os.path.join(output_directory, "complete_postprocessed_images")
+    visualizations_dir = os.path.join(output_directory, "visualizations")
     data_raw_dir = os.path.join(hparams.data_raw_parent_dir, "data_raw")
 
     if not os.path.exists(os.path.join(src, result_directory_name)):
@@ -888,8 +892,7 @@ if __name__ == "__main__":
             os.makedirs(visualizations_dir)
 
 
-    log_file_path = os.path.join(src, result_directory_name, hparams.target_masks,
-                                 "run_" + str(hparams.run_number), "log.txt")
+    log_file_path = os.path.join(output_directory, "log.txt")
     log_file = open(log_file_path, "w")
     original_print = builtins.print
 
