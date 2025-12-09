@@ -53,7 +53,7 @@ class FrontSegmentationModelBase(UNet):
         self.k = hparams["k"]
         self.relax = hparams["relax"]""
         """
-        self.model_arch = hparams.get("model_arch", "unet")
+        self.model_arch = hparams.get("model_arch", "deeplab")
         self.encoder_name = hparams.get("encoder_name", "resnet50")
         self.encoder_weights = hparams.get("encoder_weights", "imagenet")
         self.encoder_output_stride = hparams.get("encoder_output_stride", 16)
@@ -123,7 +123,7 @@ class FrontSegmentationModelBase(UNet):
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("FrontSegmentation")
-        parser.add_argument('--model_arch', default='unet', choices=['unet', 'deeplab'],
+        parser.add_argument('--model_arch', default='deeplab', choices=['unet', 'deeplab'],
                             help="Architecture to use for front segmentation.")
         parser.add_argument('--encoder_name', default='resnet50',
                             help="Encoder backbone for DeepLabV3+. Ignored for U-Net.")
