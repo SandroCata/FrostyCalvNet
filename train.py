@@ -13,7 +13,42 @@ import torch
 import os
 from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+import re
 
+
+def _extract_epoch_from_checkpoint(filename: str):
+    match = re.search(r"epoch[=:_-]?(\d+)", filename)
+    if match:
+        return int(match.group(1))
+
+    try:
+        return int(filename.split("-")[0])
+    except ValueError:
+        return None
+
+
+def get_latest_checkpoint_path(checkpoint_dir: str):
+    if not os.path.isdir(checkpoint_dir):
+        return None
+
+    checkpoints = []
+    for filename in os.listdir(checkpoint_dir):
+        if not filename.endswith(".ckpt"):
+            continue
+        if filename == "temporary.ckpt":
+            continue
+
+        epoch_number = _extract_epoch_from_checkpoint(filename)
+        if epoch_number is None:
+            continue
+
+        checkpoints.append((epoch_number, filename))
+
+    if not checkpoints:
+        return None
+
+    checkpoints.sort(key=lambda item: item[0], reverse=True)
+    return os.path.join(checkpoint_dir, checkpoints[0][1])
 
 def main(hparams, run_number, running_mode):
     if hparams.target_masks == "zones":
@@ -23,7 +58,7 @@ def main(hparams, run_number, running_mode):
                                               dirpath=checkpoint_dir,
                                               filename='{epoch:02d}-{avg_metric_validation:.2f}',
                                               mode='max',  # Here: the higher the IoU the better
-                                              save_top_k=1)
+                                              save_top_k=-1)
         early_stop_callback = EarlyStopping(monitor="avg_metric_validation", patience=30,
                                             verbose=False, mode="max", check_finite=True)
         clip_norm = 1.0
@@ -34,7 +69,7 @@ def main(hparams, run_number, running_mode):
                                               dirpath=checkpoint_dir,
                                               filename='{epoch:02d}-{avg_loss_validation:.2f}',
                                               mode='min',  # Here: the lower the loss the better
-                                              save_top_k=1)
+                                              save_top_k=-1)
         early_stop_callback = EarlyStopping(monitor="avg_loss_validation", patience=30,
                                             verbose=False, mode="min", check_finite=True)
         clip_norm = 1.0
@@ -43,10 +78,10 @@ def main(hparams, run_number, running_mode):
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
     # if we have already trained this model take up the training at the last checkpoint
-    resume_checkpoint_path = os.path.join(checkpoint_dir, "temporary.ckpt")
+    resume_checkpoint_path = get_latest_checkpoint_path(checkpoint_dir)
     checkpoint_state = None
     checkpoint_hparams = {}
-    if os.path.isfile(resume_checkpoint_path):
+    if resume_checkpoint_path is not None and os.path.isfile(resume_checkpoint_path):
         checkpoint_state = torch.load(resume_checkpoint_path, map_location="cpu")
         checkpoint_hparams = checkpoint_state.get("hyper_parameters", {})
 
@@ -136,8 +171,8 @@ def main(hparams, run_number, running_mode):
     if trainer_max_epochs is not None:
         trainer_max_epochs = int(trainer_max_epochs)
 
-    if os.path.isfile(resume_checkpoint_path):
-        print("Taking up the training where it was left (temporary checkpoint)")
+    if resume_checkpoint_path is not None and os.path.isfile(resume_checkpoint_path):
+        print(f"Taking up the training where it was left (checkpoint: {os.path.basename(resume_checkpoint_path)})")
         trainer = Trainer(resume_from_checkpoint=resume_checkpoint_path,
                           callbacks=[early_stop_callback, checkpoint_callback, lr_monitor],
                           deterministic=True,
@@ -210,13 +245,6 @@ def main(hparams, run_number, running_mode):
 
     trainer.fit(model, datamodule=datamodule)
 
-    # create a checkpoint if we are training (and delete the old one if it exists)
-    if running_mode == "training":
-        if os.path.isfile(resume_checkpoint_path):
-            os.remove(resume_checkpoint_path)
-        trainer.save_checkpoint(filepath=resume_checkpoint_path)
-
-
 if __name__ == '__main__':
     seed_everything(42)
     torch.multiprocessing.set_start_method('spawn')  # needed if ddp mode in Trainer
@@ -228,16 +256,15 @@ if __name__ == '__main__':
                                     "Default is '.' - this is where the data_preprocessing script has produced it.")
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
-    parent_parser.add_argument('--epochs', type=int, default=30, help="The number of epochs the model shall be trained."
+    parent_parser.add_argument('--epochs', type=int, default=24, help="The number of epochs the model shall be trained."
                                                                        "The weights after the last training epoch will "
-                                                                       "be stored in temporary.ckpt."
-                                                                       "Train.py will resume training from a "
-                                                                       "temporary.ckpt if one is available for this "
-                                                                       "run.")
+                                                                       "be stored via PyTorch Lightning callbacks."
+                                                                       "Train.py will resume training from the latest "
+                                                                       "checkpoint available for this run.")
     parent_parser.add_argument('--run_number', type=int, default=0,
                                help="The number how often this model was already trained. "
                                     "If you run train.py twice with the same run_number, "
-                                    "the second run will pick up training the first model from the temporary.ckpt.")
+                                    "the second run will pick up training from the most recently saved checkpoint.")
     parent_parser.add_argument('--target_masks', default="fronts", help="Either 'fronts' or 'zones'. "
                                                                         "This decides which model will be trained.")
 
