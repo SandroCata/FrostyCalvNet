@@ -4,9 +4,11 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import sys
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator, Optional, Sequence
+from typing import Iterable, Iterator, Optional, Sequence, TextIO
 import os
 
 import numpy as np
@@ -24,10 +26,10 @@ except ImportError:  # pragma: no cover
 
 SCRIPT_ROOT = os.path.dirname(os.getcwd())
 DEFAULT_VAL_PREDICTIONS_DIR = os.path.join(
-    SCRIPT_ROOT, "FrostyCalvNet\\validation_results\\fronts\\transunet\\run_0\\complete_images"
+    SCRIPT_ROOT, "FrostyCalvNet\\validation_results\\fronts\\run_0\\complete_images"
 )
 DEFAULT_TEST_PREDICTIONS_DIR = os.path.join(
-    SCRIPT_ROOT, "FrostyCalvNet\\test_results\\fronts\\\\transunet\\run_0\\complete_images"
+    SCRIPT_ROOT, "FrostyCalvNet\\test_results\\fronts\\run_0\\complete_images"
 )
 DEFAULT_VAL_FRONT_LABELS_DIR = os.path.join(SCRIPT_ROOT, "data_raw\\fronts\\train")
 
@@ -264,36 +266,69 @@ def write_results_to_csv(path: Path, results: Sequence[RatioResult]) -> None:
                 ]
             )
 
+class _Tee:
+    """Duplicate writes to multiple streams."""
+
+    def __init__(self, *streams: TextIO):
+        self.streams = streams
+
+    def write(self, data: str) -> int:  # pragma: no cover - trivial passthrough
+        for stream in self.streams:
+            stream.write(data)
+        return len(data)
+
+    def flush(self) -> None:  # pragma: no cover - trivial passthrough
+        for stream in self.streams:
+            stream.flush()
+
+
+@contextmanager
+def _tee_stdout(log_path: Path) -> Iterator[None]:
+    """Send stdout to both the terminal and a log file."""
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("w") as log_file:
+        original_stdout = sys.stdout
+        sys.stdout = _Tee(original_stdout, log_file)
+        try:
+            yield
+        finally:
+            sys.stdout = original_stdout
 
 def main(cli_args: Optional[Sequence[str]] = None) -> None:
     parser = build_arg_parser()
     args = parser.parse_args(cli_args)
 
-    dataset_directories = _resolve_dataset_directories(args, parser)
-    multiple_datasets = len(dataset_directories) > 1
+    log_path = args.output_csv.parent / f"{args.output_csv.stem}_log.txt"
 
-    for index, (dataset_name, predictions_dir, front_labels_dir) in enumerate(
-        dataset_directories
-    ):
-        results = compute_line_pixel_ratios(
-            predictions_dir=predictions_dir,
-            front_labels_dir=front_labels_dir,
-        )
+    with _tee_stdout(log_path):
+        dataset_directories = _resolve_dataset_directories(args, parser)
+        multiple_datasets = len(dataset_directories) > 1
 
-        output_path = args.output_csv
-        if multiple_datasets:
-            output_path = output_path.with_name(f"{dataset_name}_{output_path.name}")
+        for index, (dataset_name, predictions_dir, front_labels_dir) in enumerate(
+            dataset_directories
+        ):
+            results = compute_line_pixel_ratios(
+                predictions_dir=predictions_dir,
+                front_labels_dir=front_labels_dir,
+            )
 
-        write_results_to_csv(output_path, results)
+            output_path = args.output_csv
+            if multiple_datasets:
+                output_path = output_path.with_name(f"{dataset_name}_{output_path.name}")
 
-        summary = summarise_results(results)
-        prefix = f"[{dataset_name}] "
-        print(prefix + "Computed ratios for", len(results), "images")
-        print(prefix + "Mean front-line pixel ratio:", summary["mean_front_ratio"])
-        print(prefix + "Results written to:", output_path)
+        
 
-        if multiple_datasets and index < len(dataset_directories) - 1:
-            print()
+            write_results_to_csv(output_path, results)
+
+            summary = summarise_results(results)
+            prefix = f"[{dataset_name}] "
+            print(prefix + "Computed ratios for", len(results), "images")
+            print(prefix + "Mean front-line pixel ratio:", summary["mean_front_ratio"])
+            print(prefix + "Results written to:", output_path)
+
+            if multiple_datasets and index < len(dataset_directories) - 1:
+                print()
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
