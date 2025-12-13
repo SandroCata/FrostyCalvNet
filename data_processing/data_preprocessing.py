@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 import pickle
 import cv2
 
+#Step 1: Thicken front labels
 def thicken_fronts(mask):
     """
     Dilate front label with a 5x5 kernel.
@@ -151,7 +152,7 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
                 patch_name = patch_name.replace(".png", f"{suffix}.png")
             cv2.imwrite(
                 os.path.join(
-                    parent_dir, "data", modality_dir, data_split_dir, patch_name
+                    parent_dir, "data_mk0", modality_dir, data_split_dir, patch_name
                 ),
                 patches_image[j],
             )
@@ -170,14 +171,14 @@ def main(raw_data_dir, patch_size, overlap, overlap_test, overlap_val):
     parent_dir = os.path.dirname(os.getcwd())
     threads = []
     for modality_dir in ["sar_images", "fronts"]:
-        if not os.path.exists(os.path.join(parent_dir, "data", modality_dir)):
-            os.makedirs(os.path.join(parent_dir, "data", modality_dir))
-        if not os.path.exists(os.path.join(parent_dir, "data", modality_dir, "val")):
-            os.makedirs(os.path.join(parent_dir, "data", modality_dir, "val"))
+        if not os.path.exists(os.path.join(parent_dir, "data_mk0", modality_dir)):
+            os.makedirs(os.path.join(parent_dir, "data_mk0", modality_dir))
+        if not os.path.exists(os.path.join(parent_dir, "data_mk0", modality_dir, "val")):
+            os.makedirs(os.path.join(parent_dir, "data_mk0", modality_dir, "val"))
 
         for data_split_dir in ["test", "train"]:
-            if not os.path.exists(os.path.join(parent_dir, "data", modality_dir, data_split_dir)):
-                os.makedirs(os.path.join(parent_dir, "data", modality_dir, data_split_dir))
+            if not os.path.exists(os.path.join(parent_dir, "data_mk0", modality_dir, data_split_dir)):
+                os.makedirs(os.path.join(parent_dir, "data_mk0", modality_dir, data_split_dir))
 
             folder = sorted(Path(os.path.join(parent_dir, raw_data_dir, modality_dir, data_split_dir)).rglob('*.png'))
             files = [x for x in folder]
@@ -241,8 +242,8 @@ if __name__ == '__main__':
 
     parent_dir = os.path.dirname(os.getcwd())
 
-    if not os.path.exists(os.path.join(parent_dir, "data")):
-        os.makedirs(os.path.join(parent_dir, "data"))
+    if not os.path.exists(os.path.join(parent_dir, "data_mk0")):
+        os.makedirs(os.path.join(parent_dir, "data_mk0"))
 
     assert hparams.patch_size > hparams.overlap, "Choose an overlap that is smaller than your patch_size"
 

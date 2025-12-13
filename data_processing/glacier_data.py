@@ -12,14 +12,14 @@ import pickle
 class GlacierDataset(Dataset):
     def __init__(self, target, mode, augmentation, parent_dir, bright, wrap, noise, rotate, flip):
         if mode == 'train':
-            self.images_path = os.path.join(parent_dir, "data", "sar_images", "train")
-            self.targets_path = os.path.join(parent_dir, "data", target, "train")
+            self.images_path = os.path.join(parent_dir, "data_mk0", "sar_images", "train")
+            self.targets_path = os.path.join(parent_dir, "data_mk0", target, "train")
         elif mode == 'val':
-            self.images_path = os.path.join(parent_dir, "data", "sar_images", "val")
-            self.targets_path = os.path.join(parent_dir, "data", target, "val")
+            self.images_path = os.path.join(parent_dir, "data_mk0", "sar_images", "val")
+            self.targets_path = os.path.join(parent_dir, "data_mk0", target, "val")
         elif mode == 'test':
-            self.images_path = os.path.join(parent_dir, "data", "sar_images", "test")
-            self.targets_path = os.path.join(parent_dir, "data", target, "test")
+            self.images_path = os.path.join(parent_dir, "data_mk0", "sar_images", "test")
+            self.targets_path = os.path.join(parent_dir, "data_mk0", target, "test")
             
         self.imgs = os.listdir(self.images_path)
         self.labels = os.listdir(self.targets_path)
