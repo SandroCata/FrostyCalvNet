@@ -58,7 +58,7 @@ This will split the training data into validation and training sets, as used in 
 If you prefer to use a new random val-train-split, 
 please delete `data_processing/data_splits/train_idx.txt` and `data_processing/data_splits/val_idx.txt`.
 Moreover, `data_processing/data_preprocessing.py` thickens the front labels and divides the images and labels into patches 
-and stores them in the new directory `data_2`.
+and stores them in the new directory `data_baseline`.
 
 
 ### Model Training

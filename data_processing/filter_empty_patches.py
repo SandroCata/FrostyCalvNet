@@ -12,6 +12,17 @@ def is_empty(mask_path: Path) -> bool:
         raise FileNotFoundError(f"Cannot read mask file: {mask_path}")
     return not np.any(mask)
 
+def find_front_masks(sar_name: str, front_dir: Path) -> list[Path]:
+    base = Path(sar_name).stem
+    candidates = [
+        front_dir / f"{base}_front.png",
+        front_dir / f"{base}.png",
+    ]
+    existing = [path for path in candidates if path.exists()]
+    if existing:
+        return existing
+    return sorted(front_dir.glob(f"{base}*.png"))
+
 def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
     """Remove patches with empty ground-truth masks for a given split."""
     parent_dir = Path(os.getcwd()).parent
@@ -24,11 +35,11 @@ def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
     sar_files = [p.name for p in sar_dir.glob("*.png")]
 
     empty_names = []
+    empty_fronts = {}
     for name in sar_files:
-        front_name = name.replace(".png", "_front.png")
-        front_path = front_dir / front_name
-        if not front_path.exists() or is_empty(front_path):
-            empty_names.append(name)
+        front_paths = find_front_masks(name, front_dir)
+        if not front_paths or all(is_empty(front_path) for front_path in front_paths):
+            empty_fronts[name] = front_paths
 
     # keep a fraction of negative samples
     if keep_ratio < 1.0:
@@ -37,11 +48,9 @@ def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
         empty_names = empty_names[keep_n:]
 
     for name in empty_names:
-        paths = [
-            sar_dir / name,
-            front_dir / name.replace(".png", "_front.png"),
-        ]
-        for f in paths:
+        paths = [sar_dir / name]
+        paths.extend(empty_fronts.get(name, []))
+        for f in set(paths):
             if f.exists():
                 os.remove(f)
 
@@ -52,7 +61,7 @@ def main(data_dir: str, keep_ratio: float) -> None:
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Remove patches with empty ground-truth masks")
-    parser.add_argument("--data_dir", default="data_mk0", help="Directory with processed patches")
+    parser.add_argument("--data_dir", default="data_baseline", help="Directory with processed patches")
     parser.add_argument(
         "--keep_ratio",
         type=float,

@@ -12,14 +12,14 @@ import pickle
 class GlacierDataset(Dataset):
     def __init__(self, target, mode, augmentation, parent_dir, bright, wrap, noise, rotate, flip):
         if mode == 'train':
-            self.images_path = os.path.join(parent_dir, "data_2", "sar_images", "train")
-            self.targets_path = os.path.join(parent_dir, "data_2", target, "train")
+            self.images_path = os.path.join(parent_dir, "data_baseline", "sar_images", "train")
+            self.targets_path = os.path.join(parent_dir, "data_baseline", target, "train")
         elif mode == 'val':
-            self.images_path = os.path.join(parent_dir, "data_2", "sar_images", "val")
-            self.targets_path = os.path.join(parent_dir, "data_2", target, "val")
+            self.images_path = os.path.join(parent_dir, "data_baseline", "sar_images", "val")
+            self.targets_path = os.path.join(parent_dir, "data_baseline", target, "val")
         elif mode == 'test':
-            self.images_path = os.path.join(parent_dir, "data_2", "sar_images", "test")
-            self.targets_path = os.path.join(parent_dir, "data_2", target, "test")
+            self.images_path = os.path.join(parent_dir, "data_baseline", "sar_images", "test")
+            self.targets_path = os.path.join(parent_dir, "data_baseline", target, "test")
         self.imgs = os.listdir(self.images_path)
         self.labels = os.listdir(self.targets_path)
         # Sort so images and labels fit together
