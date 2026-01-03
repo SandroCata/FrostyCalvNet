@@ -71,7 +71,7 @@ def main(data_dir: str, keep_ratio: float) -> None:
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Remove patches with empty ground-truth masks")
-    parser.add_argument("--data_dir", default="data_baseline", help="Directory with processed patches")
+    parser.add_argument("--data_dir", default="data_baseline_orig", help="Directory with processed patches")
     parser.add_argument(
         "--keep_ratio",
         type=float,

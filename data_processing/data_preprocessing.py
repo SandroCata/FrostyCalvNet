@@ -129,7 +129,7 @@ def preprocess(modality_dir, data_split_dir, files, patch_size, overlap):
             # with x and y the x and y coordinates of the patch in the complete image
             add_to_name = '__' + str(bottom) + '_' + str(right) + '_' + str(j) + '_' \
                           + str(coords_image[0][j]) + '_' + str(coords_image[1][j]) + '.png'
-            cv2.imwrite(os.path.join(parent_dir, "data_baseline", modality_dir, data_split_dir, img_name + add_to_name), patches_image[j])
+            cv2.imwrite(os.path.join(parent_dir, "data_baseline_orig", modality_dir, data_split_dir, img_name + add_to_name), patches_image[j])
 
 
 def main(raw_data_dir, patch_size, overlap, overlap_test, overlap_val):
@@ -145,14 +145,14 @@ def main(raw_data_dir, patch_size, overlap, overlap_test, overlap_val):
     parent_dir = os.path.dirname(os.getcwd())
     threads = []
     for modality_dir in ["sar_images", "zones", "fronts"]:
-        if not os.path.exists(os.path.join(parent_dir, "data_baseline", modality_dir)):
-            os.makedirs(os.path.join(parent_dir, "data_baseline", modality_dir))
-        if not os.path.exists(os.path.join(parent_dir, "data_baseline", modality_dir, "val")):
-            os.makedirs(os.path.join(parent_dir, "data_baseline", modality_dir, "val"))
+        if not os.path.exists(os.path.join(parent_dir, "data_baseline_orig", modality_dir)):
+            os.makedirs(os.path.join(parent_dir, "data_baseline_orig", modality_dir))
+        if not os.path.exists(os.path.join(parent_dir, "data_baseline_orig", modality_dir, "val")):
+            os.makedirs(os.path.join(parent_dir, "data_baseline_orig", modality_dir, "val"))
 
         for data_split_dir in ["test", "train"]:
-            if not os.path.exists(os.path.join(parent_dir, "data_baseline", modality_dir, data_split_dir)):
-                os.makedirs(os.path.join(parent_dir, "data_baseline", modality_dir, data_split_dir))
+            if not os.path.exists(os.path.join(parent_dir, "data_baseline_orig", modality_dir, data_split_dir)):
+                os.makedirs(os.path.join(parent_dir, "data_baseline_orig", modality_dir, data_split_dir))
 
             folder = sorted(Path(os.path.join(parent_dir, raw_data_dir, modality_dir, data_split_dir)).rglob('*.png'))
             files = [x for x in folder]
@@ -216,8 +216,8 @@ if __name__ == '__main__':
 
     parent_dir = os.path.dirname(os.getcwd())
 
-    if not os.path.exists(os.path.join(parent_dir, "data_baseline")):
-        os.makedirs(os.path.join(parent_dir, "data_baseline"))
+    if not os.path.exists(os.path.join(parent_dir, "data_baseline_orig")):
+        os.makedirs(os.path.join(parent_dir, "data_baseline_orig"))
 
     assert hparams.patch_size > hparams.overlap, "Choose an overlap that is smaller than your patch_size"
 
