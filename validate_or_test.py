@@ -97,6 +97,17 @@ def print_zone_metrics(metric_name, list_of_metrics):
 def print_front_metric(name, metric):
     print(f"Average {name}: {sum(metric) / len(metric)}")
 
+"""
+def align_predicted_to_target_shape(predicted_mask, target_mask, file_name):
+    if predicted_mask.shape == target_mask.shape:
+        return predicted_mask
+    print(
+        "Warning: predicted mask shape does not match target mask shape for "
+        f"{file_name}. Resizing prediction from {predicted_mask.shape} to {target_mask.shape}."
+    )
+    target_height, target_width = target_mask.shape[:2]
+    return cv2.resize(predicted_mask, (target_width, target_height), interpolation=cv2.INTER_NEAREST)
+"""
 
 def get_matching_out_of_folder(file_name, folder):
     """
@@ -176,6 +187,7 @@ def calculate_segmentation_metrics(target_mask_modality, complete_predicted_mask
         complete_predicted_mask = cv2.imread(os.path.join(complete_directory, file_name).__str__(), cv2.IMREAD_GRAYSCALE)
         matching_target_file = get_matching_out_of_folder(file_name, directory_of_complete_targets)
         complete_target = cv2.imread(os.path.join(directory_of_complete_targets, matching_target_file).__str__(), cv2.IMREAD_GRAYSCALE)
+        #complete_predicted_mask = align_predicted_to_target_shape(complete_predicted_mask, complete_target, file_name)
 
         if target_mask_modality == "zones":
             # images need to be turned into a Tensor [0, ..., n_classes-1]
