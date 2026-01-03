@@ -14,10 +14,16 @@ def is_empty(mask_path: Path) -> bool:
 
 def find_front_masks(sar_name: str, front_dir: Path) -> list[Path]:
     base = Path(sar_name).stem
-    candidates = [
-        front_dir / f"{base}_front.png",
-        front_dir / f"{base}.png",
-    ]
+    candidates = []
+    if "__" in base:
+        prefix, suffix = base.split("__", 1)
+        candidates.append(front_dir / f"{prefix}_front__{suffix}.png")
+    candidates.extend(
+        [
+            front_dir / f"{base}_front.png",
+            front_dir / f"{base}.png",
+        ]
+    )
     existing = [path for path in candidates if path.exists()]
     if existing:
         return existing
@@ -40,6 +46,9 @@ def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
         front_paths = find_front_masks(name, front_dir)
         if not front_paths or all(is_empty(front_path) for front_path in front_paths):
             empty_fronts[name] = front_paths
+            empty_names.append(name)
+            print(f"Empty mask found for {name} in split '{split}'")
+    print(f"Found {len(empty_names)} empty masks in split '{split}'")
 
     # keep a fraction of negative samples
     if keep_ratio < 1.0:
@@ -53,6 +62,7 @@ def filter_split(data_dir: Path, split: str, keep_ratio: float) -> None:
         for f in set(paths):
             if f.exists():
                 os.remove(f)
+                print("Removed:", f)
 
 def main(data_dir: str, keep_ratio: float) -> None:
     data_path = Path(data_dir)

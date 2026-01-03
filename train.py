@@ -60,7 +60,7 @@ def main(hparams, run_number, running_mode):
         tb_logs_dir = os.path.join('tb_logs', 'zones_segmentation', 'run_' + str(run_number))
         checkpoint_callback = ModelCheckpoint(monitor='avg_metric_validation',
                                               dirpath=checkpoint_dir,
-                                              filename='-{epoch:02d}-{avg_metric_validation:.2f}',
+                                              filename='{epoch:02d}-{avg_metric_validation:.2f}',
                                               mode='max',  # Here: the higher the IoU the better
                                               save_top_k=-1)
         early_stop_callback = EarlyStopping(monitor="avg_metric_validation", patience=30,
@@ -71,7 +71,7 @@ def main(hparams, run_number, running_mode):
         tb_logs_dir = os.path.join('tb_logs', 'fronts_segmentation', 'run_' + str(run_number))
         checkpoint_callback = ModelCheckpoint(monitor='avg_loss_validation',
                                               dirpath=checkpoint_dir,
-                                              filename='-{epoch:02d}-{avg_loss_validation:.2f}',
+                                              filename='{epoch:02d}-{avg_loss_validation:.2f}',
                                               mode='min',  # Here: the lower the loss the better
                                               save_top_k=-1)
         early_stop_callback = EarlyStopping(monitor="avg_loss_validation", patience=30,
@@ -180,7 +180,7 @@ if __name__ == '__main__':
     parent_parser.add_argument('--training_mode', default="training",
                                help="Either 'training', 'debugging' or 'batch_overfit'.")
     parent_parser.add_argument(
-        '--epochs', type=int, default=14,
+        '--epochs', type=int, default=31,
         help="The number of epochs the model shall be trained."
              "The weights after the last training epoch will "
              "be stored in temporary.ckpt."
