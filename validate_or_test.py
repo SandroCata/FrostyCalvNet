@@ -352,7 +352,8 @@ def post_processing(target_masks, complete_predicted_masks, bounding_boxes_direc
         else:
             complete_predicted_mask_class_labels = turn_colors_to_class_labels_front(complete_predicted_mask)
             post_complete_predicted_mask = complete_predicted_mask_class_labels
-            #post_complete_predicted_mask = postprocess_front_segmentation(complete_predicted_mask_class_labels, pixel_threshold)
+            #restored since thickening still occurs in mk0
+            post_complete_predicted_mask = postprocess_front_segmentation(complete_predicted_mask_class_labels, pixel_threshold)
             post_complete_predicted_mask = post_complete_predicted_mask * 255
 
         post_complete_predicted_mask = mask_prediction_with_bounding_box(post_complete_predicted_mask, file_name,
